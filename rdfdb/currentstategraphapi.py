@@ -1,6 +1,6 @@
 import logging, traceback, time, itertools
 from rdflib import ConjunctiveGraph
-from light9.rdfdb.rdflibpatch import contextsForStatement as rp_contextsForStatement
+from rdfdb.rdflibpatch import contextsForStatement as rp_contextsForStatement
 log = logging.getLogger("currentstate")
 
 class ReadOnlyConjunctiveGraph(object):

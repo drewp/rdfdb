@@ -1,7 +1,7 @@
 import logging, cyclone.httpclient, traceback, urllib
 from twisted.internet import reactor
 from light9 import networking
-from light9.rdfdb.patch import Patch
+from rdfdb.patch import Patch
 log = logging.getLogger('syncedgraph')
 
 class PatchReceiver(object):

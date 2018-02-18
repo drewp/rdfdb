@@ -1,6 +1,6 @@
 import logging
 from rdflib import RDF, RDFS
-from light9.rdfdb.currentstategraphapi import contextsForStatementNoWildcards
+from rdfdb.currentstategraphapi import contextsForStatementNoWildcards
 log = logging.getLogger('autodepgraphapi')
 
 class AutoDepGraphApi(object):

@@ -2,7 +2,7 @@ import unittest
 import mock
 import tempfile
 from rdflib import URIRef, Graph
-from light9.rdfdb.graphfile import GraphFile
+from rdfdb.graphfile import GraphFile
 
 class TestGraphFileOutput(unittest.TestCase):
     def testMaintainsN3PrefixesFromInput(self):

@@ -1,7 +1,7 @@
 import json, unittest
 from rdflib import ConjunctiveGraph, Graph, URIRef, URIRef as U, Literal
 from light9.namespaces import XSD
-from light9.rdfdb.rdflibpatch import graphFromNQuad, graphFromQuads, serializeQuad
+from rdfdb.rdflibpatch import graphFromNQuad, graphFromQuads, serializeQuad
 
 ALLSTMTS = (None, None, None)
 

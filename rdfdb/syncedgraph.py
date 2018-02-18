@@ -21,13 +21,13 @@ import logging, cyclone.httpclient, traceback
 from twisted.internet import defer
 import treq, json
 log = logging.getLogger('syncedgraph')
-from light9.rdfdb.rdflibpatch import patchQuads
+from rdfdb.rdflibpatch import patchQuads
 
-from light9.rdfdb.patchsender import PatchSender
-from light9.rdfdb.patchreceiver import PatchReceiver
-from light9.rdfdb.currentstategraphapi import CurrentStateGraphApi
-from light9.rdfdb.autodepgraphapi import AutoDepGraphApi
-from light9.rdfdb.grapheditapi import GraphEditApi
+from rdfdb.patchsender import PatchSender
+from rdfdb.patchreceiver import PatchReceiver
+from rdfdb.currentstategraphapi import CurrentStateGraphApi
+from rdfdb.autodepgraphapi import AutoDepGraphApi
+from rdfdb.grapheditapi import GraphEditApi
 
 # everybody who writes literals needs to get this
 from rdflibpatch_literal import patch

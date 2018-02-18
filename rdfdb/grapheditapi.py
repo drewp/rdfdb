@@ -1,7 +1,7 @@
 import random, logging
 from itertools import chain
 from rdflib import URIRef, RDF
-from light9.rdfdb.patch import Patch, quadsWithContextUris
+from rdfdb.patch import Patch, quadsWithContextUris
 log = logging.getLogger('graphedit')
 
 class GraphEditApi(object):

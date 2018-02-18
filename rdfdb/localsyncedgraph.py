@@ -1,9 +1,9 @@
 from rdflib import ConjunctiveGraph
 
-from light9.rdfdb.currentstategraphapi import CurrentStateGraphApi
-from light9.rdfdb.autodepgraphapi import AutoDepGraphApi
-from light9.rdfdb.grapheditapi import GraphEditApi
-from light9.rdfdb.rdflibpatch import patchQuads
+from rdfdb.currentstategraphapi import CurrentStateGraphApi
+from rdfdb.autodepgraphapi import AutoDepGraphApi
+from rdfdb.grapheditapi import GraphEditApi
+from rdfdb.rdflibpatch import patchQuads
 
 class LocalSyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
     """for tests"""

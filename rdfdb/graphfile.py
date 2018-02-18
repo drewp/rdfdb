@@ -3,8 +3,8 @@ from twisted.python.filepath import FilePath
 from twisted.internet import reactor
 from twisted.internet.inotify import humanReadableMask
 from rdflib import Graph, RDF
-from light9.rdfdb.patch import Patch
-from light9.rdfdb.rdflibpatch import inContext
+from rdfdb.patch import Patch
+from rdfdb.rdflibpatch import inContext
 
 log = logging.getLogger('graphfile')
 iolog = logging.getLogger('io')
