@@ -1,6 +1,8 @@
 import json, unittest
-from rdflib import ConjunctiveGraph, Graph, URIRef, URIRef as U, Literal
-from light9.namespaces import XSD
+from rdflib import ConjunctiveGraph, Graph, URIRef, URIRef as U, Literal, Namespace
+XSD = Namespace("http://www.w3.org/2001/XMLSchema#")
+
+
 from rdfdb.rdflibpatch import graphFromNQuad, graphFromQuads, serializeQuad
 
 ALLSTMTS = (None, None, None)
