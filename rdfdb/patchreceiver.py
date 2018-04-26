@@ -1,6 +1,5 @@
 import logging, cyclone.httpclient, traceback, urllib
 from twisted.internet import reactor
-from light9 import networking
 from rdfdb.patch import Patch
 log = logging.getLogger('syncedgraph')
 
@@ -10,7 +9,7 @@ class PatchReceiver(object):
     master. See onPatch for what happens when the rdfdb master sends
     us a patch
     """
-    def __init__(self, rdfdbRoot, label, onPatch):
+    def __init__(self, rdfdbRoot, host, label, onPatch):
         """
         label is what we'll call ourselves to the rdfdb server
 
@@ -22,8 +21,7 @@ class PatchReceiver(object):
         ]))
         port = listen._realPortNumber  # what's the right call for this?
         
-        self.updateResource = 'http://%s:%s/update' % (
-            networking.patchReceiverUpdateHost.value, port)
+        self.updateResource = 'http://%s:%s/update' % (host, port)
         log.info("listening on %s" % port)
         self._register(label)
 

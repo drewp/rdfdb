@@ -9,5 +9,10 @@ setup(
         'cyclone',
         'mock',
         'treq',
+        'rdflib-jsonld',
+        'service_identity',
         ],
+    entry_points={
+        'console_scripts': ['rdfdb=rdfdb.service:main'],
+    },
  )

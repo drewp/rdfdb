@@ -52,16 +52,18 @@ class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
     pending local changes) and get the data again from the
     server.
     """
-    def __init__(self, rdfdbRoot, label):
+    def __init__(self, rdfdbRoot, receiverHost, label):
         """
         label is a string that the server will display in association
         with your connection
+
+        receiverHost is the hostname other nodes can use to talk to me
         """
         self.rdfdbRoot = rdfdbRoot
         self.initiallySynced = defer.Deferred()
         self._graph = ConjunctiveGraph()
 
-        self._receiver = PatchReceiver(self.rdfdbRoot, label, self._onPatch)
+        self._receiver = PatchReceiver(self.rdfdbRoot, receiverHost, label, self._onPatch)
         
         self._sender = PatchSender(self.rdfdbRoot + 'patches',
                                    self._receiver.updateResource)

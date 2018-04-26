@@ -1,0 +1,106 @@
+other tools POST themselves to here as subscribers to the graph. They
+are providing a URL we can PUT to with graph updates.
+
+we immediately PUT them back all the contents of the graph as a bunch
+of adds.
+
+later we PUT them back with patches (del/add lists) when there are
+changes.
+
+If we fail to reach a registered caller, we forget about it for future
+calls. We could PUT empty diffs as a heartbeat to notice disappearing
+callers faster.
+
+A caller can submit a patch which we'll persist and broadcast to every
+other client.
+
+Global data undo should probably happen within this service. Some
+operations should not support undo, such as updating the default
+position of a window. How will we separate those? A blacklist of
+subj+pred pairs that don't save undo? Or just save the updates like
+everything else, but when you press undo, there's a way to tell which
+updates *should* be part of your app's undo system?
+
+Maybe some subgraphs are for transient data (e.g. current timecode,
+mouse position in curvecalc) that only some listeners want to hear about.
+
+Deletes are graph-specific, so callers may be surprised to delete a
+stmt from one graph but then find that statement is still true.
+
+Alternate plan: would it help to insist that every patch is within
+only one subgraph? I think it's ok for them to span multiple ones.
+
+Inserts can be made on any subgraphs, and each subgraph is saved in
+its own file. The file might not be in a format that can express
+graphs, so I'm just going to not store the subgraph URI in any file.
+
+I don't support wildcard deletes, and there are race conditions where a
+s-p could end up with unexpected multiple objects. Every client needs
+to be ready for this.
+
+We watch the files and push their own changes back to the clients.
+
+Persist our client list, to survive restarts. In another rdf file? A
+random json one? memcache? Also hold the recent changes. We're not
+logging everything forever, though, since the output files and a VCS
+shall be used for that
+
+Bnodes: this rdfdb graph might be able to track bnodes correctly, and
+they make for more compact n3 files. I'm not sure if it's going to be
+hard to keep the client bnodes in sync though. File rereads would be
+hard, if ever a bnode was used across graphs, so that probably should
+not be allowed.
+
+Our API:
+
+GET /  ui
+GET /graph    the whole graph, or a query from it (needed? just for ui browsing?)
+PUT /patches  clients submit changes
+GET /patches  (recent) patches from clients
+POST /graphClients clientUpdate={uri} to subscribe
+GET /graphClients  current clients
+
+format:
+json {"adds" : [[quads]...],
+      "deletes": [[quads]],
+      "senderUpdateUri" : tooluri,
+      "created":tttt // maybe to help resolve some conflicts
+     }
+maybe use some http://json-ld.org/ in there.
+
+proposed rule feature:
+rdfdb should be able to watch a pair of (sourceFile, rulesFile) and
+rerun the rules when either one changes. Should the sourceFile be able
+to specify its own rules file?  That would be easier
+configuration. How do edits work? Not allowed?  Patch the source only?
+Also see the source graph loaded into a different ctx, and you can
+edit that one and see the results in the output context?
+
+Our web ui:
+
+  sections
+
+    registered clients
+
+    recent patches, each one says what client it came from. You can reverse
+    them here. We should be able to take patches that are close in time
+    and keep updating the same data (e.g. a stream of changes as the user
+    drags a slider) and collapse them into a single edit for clarity.
+
+        Ways to display patches, using labels and creator/subj icons
+        where possible:
+
+          <creator> set <subj>'s <p> to <o>
+          <creator> changed <subj>'s <pred> from <o1> to <o2>
+          <creator> added <o> to <s> <p>
+
+    raw messages for debugging this client
+
+    ctx urls take you to->
+    files, who's dirty, have we seen external changes, notice big
+    files that are taking a long time to save
+
+    graph contents. plain rdf browser like an outliner or
+    something. clicking any resource from the other displays takes you
+    to this, focused on that resource
+    

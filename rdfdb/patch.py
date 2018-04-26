@@ -51,13 +51,6 @@ class Patch(object):
             if isinstance(n, Literal):
                 if n.datatype == XSD['double']:
                     return str(n.toPython())
-            if isinstance(n, URIRef):
-                for long, short in [
-                        ("http://light9.bigasterisk.com/", "l9"),
-                        
-                ]:
-                    if n.startswith(long):
-                        return short+":"+n[len(long):]
             return n.n3()
         def formatQuad(quad):
             return " ".join(shorten(n) for n in quad)
