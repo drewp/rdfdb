@@ -19,6 +19,7 @@ PatchSender - collects and transmits your graph edits
 from rdflib import ConjunctiveGraph
 import logging, cyclone.httpclient, traceback
 from twisted.internet import defer
+import socket
 import treq, json
 log = logging.getLogger('syncedgraph')
 from rdfdb.rdflibpatch import patchQuads
@@ -52,13 +53,16 @@ class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
     pending local changes) and get the data again from the
     server.
     """
-    def __init__(self, rdfdbRoot, receiverHost, label):
+    def __init__(self, rdfdbRoot, label, receiverHost=None):
         """
         label is a string that the server will display in association
         with your connection
 
         receiverHost is the hostname other nodes can use to talk to me
         """
+        if receiverHost is None:
+            receiverHost = socket.gethostname()
+        
         self.rdfdbRoot = rdfdbRoot
         self.initiallySynced = defer.Deferred()
         self._graph = ConjunctiveGraph()
