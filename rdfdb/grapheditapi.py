@@ -30,7 +30,7 @@ class GraphEditApi(object):
 
     def patchObject(self, context, subject, predicate, newObject):
         p = self.getObjectPatch(context, subject, predicate, newObject)
-        log.info("patchObject %r" % p.jsonRepr)
+        log.debug("patchObject %r" % p.jsonRepr)
         self.patch(p)
 
     def patchSubgraph(self, context, newGraph):
