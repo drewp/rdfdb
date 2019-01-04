@@ -30,7 +30,8 @@ class GraphEditApi(object):
 
     def patchObject(self, context, subject, predicate, newObject):
         p = self.getObjectPatch(context, subject, predicate, newObject)
-        log.debug("patchObject %r" % p.jsonRepr)
+        if not p.isNoop():
+            log.debug("patchObject %r" % p.jsonRepr)
         self.patch(p)
 
     def patchSubgraph(self, context, newGraph):
