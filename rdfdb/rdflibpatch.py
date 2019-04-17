@@ -53,11 +53,19 @@ def inGraph(spoc, graph):
     c is just a URIRef.
     Workaround for https://github.com/RDFLib/rdflib/issues/398
     """
-    spoi = spoc[:3] + (Graph(identifier=spoc[3]),)
-    if spoi not in graph:
-        # this is a huge speedup, avoid many whole-graph scans
-        return False
-    return spoi in graph.quads()
+
+    c = spoc[3]
+    if isinstance(c, Graph):
+        c = c.identifier
+    
+    for spoc2 in graph.quads(spoc[:3]):
+        if spoc[:3] == spoc2[:3]:
+            c2 = spoc2[3]
+            if isinstance(c2, Graph):
+                c2 = c2.identifier
+            if c == c2:
+                return True
+    return False
 
 # some of the following workarounds may be fixed in https://github.com/RDFLib/rdflib/issues/299
 def graphFromQuads(q):
@@ -128,6 +136,22 @@ class TestContextsForStatement(unittest.TestCase):
     # There's a case where contextsForStatement was returning a Graph
     # with identifier, which I've fixed without a test
 
+
+class TestInGraph(unittest.TestCase):
+    def testSimpleMatch(self):
+        g = graphFromQuads([(A,A,A,A)])
+        self.assert_(inGraph((A,A,A,A), g))
+
+    def testDontMatchDifferentStatement(self):
+        g = graphFromQuads([(A,A,A,A)])
+        self.assertFalse(inGraph((B,B,B,B), g))
+        
+    def testDontMatchStatementInAnotherContext(self):
+        g = graphFromQuads([(A,A,A,A)])
+        self.assertFalse(inGraph((A,A,A,B), g))
+        
+        self.assertFalse(inGraph((A,A,A,Graph(identifier=B)), g))
+    
 
 class TestGraphFromQuads(unittest.TestCase):
     nqOut = '<http://example.com/> <http://example.com/> <http://example.com/> <http://example.com/> .\n'

@@ -19,14 +19,11 @@ class GraphEditApi(object):
         """
 
         existing = []
-        for spo in self._graph.triples((subject, predicate, None),
-                                     context=context):
-            existing.append(spo+(context,))
-        # what layer is supposed to cull out no-op changes?
-        return Patch(
-            delQuads=existing,
-            addQuads=([(subject, predicate, newObject, context)]
-                      if newObject is not None else []))
+        for spoc in quadsWithContextUris(self._graph.quads((subject, predicate, None, context))):
+            existing.append(spoc)
+        toAdd = ([(subject, predicate, newObject, context)]
+                      if newObject is not None else [])
+        return Patch(delQuads=existing, addQuads=toAdd).simplify()
 
     def patchObject(self, context, subject, predicate, newObject):
         p = self.getObjectPatch(context, subject, predicate, newObject)
