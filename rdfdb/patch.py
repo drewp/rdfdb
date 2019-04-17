@@ -128,6 +128,14 @@ class Patch(object):
         d.update(extraAttrs)
         return json.dumps(d)
 
+    def simplify(self):
+        adds = set(self.addQuads)
+        dels = set(self.delQuads)
+        both = adds.intersection(dels)
+        if not both:
+            return self
+        return Patch(addQuads=adds - both, delQuads=dels - both)
+        
     def concat(self, more):
         """
         new Patch with the result of applying this patch and the
