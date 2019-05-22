@@ -1,3 +1,4 @@
+from __future__ import print_function
 import logging, time
 import cyclone.httpclient
 from twisted.internet import defer
@@ -47,12 +48,12 @@ class PatchSender(object):
             # other out. not working yet:
             if 0:
                 p = self._patchesToSend[0].concat(self._patchesToSend[1:])
-                print "concat down to"
-                print 'dels'
-                for q in p.delQuads: print q
-                print 'adds'
-                for q in p.addQuads: print q
-                print "----"
+                print("concat down to")
+                print('dels')
+                for q in p.delQuads: print(q)
+                print('adds')
+                for q in p.addQuads: print(q)
+                print("----")
             else:
                 p, sendResult = self._patchesToSend.pop(0)
         else:

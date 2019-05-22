@@ -31,7 +31,7 @@ from rdfdb.autodepgraphapi import AutoDepGraphApi
 from rdfdb.grapheditapi import GraphEditApi
 
 # everybody who writes literals needs to get this
-from rdflibpatch_literal import patch
+from rdfdb.rdflibpatch_literal import patch
 patch()
 
 

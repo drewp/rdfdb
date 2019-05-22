@@ -52,5 +52,5 @@ class TestDoubleOutput(unittest.TestCase):
     def testNoDanglingPoint(self):
         vv = Literal("0.88", datatype=_XSD_DOUBLE)
         out = _literal_n3(vv, use_plain=True)
-        print out
+        print(out)
         self.assert_(out in ["8.8e-01", "0.88"], out)
