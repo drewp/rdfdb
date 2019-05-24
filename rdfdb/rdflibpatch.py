@@ -100,7 +100,7 @@ def serializeQuad(g):
         if '[' in c.n3():
             import ipdb;ipdb.set_trace()
         ntObject = _quoteLiteral(o) if isinstance(o, Literal) else o.n3()
-        out.append(u"%s %s %s %s .\n" % (s.n3(),
+        out.append("%s %s %s %s .\n" % (s.n3(),
                                      p.n3(),
                                      ntObject,
                                      c.n3()))
@@ -140,7 +140,7 @@ class TestContextsForStatement(unittest.TestCase):
 class TestInGraph(unittest.TestCase):
     def testSimpleMatch(self):
         g = graphFromQuads([(A,A,A,A)])
-        self.assert_(inGraph((A,A,A,A), g))
+        self.assertTrue(inGraph((A,A,A,A), g))
 
     def testDontMatchDifferentStatement(self):
         g = graphFromQuads([(A,A,A,A)])
@@ -176,7 +176,7 @@ class TestPatchQuads(unittest.TestCase):
     def testAddsToNewContext(self):
         g = ConjunctiveGraph()
         patchQuads(g, [], [stmt1])
-        self.assert_(len(g), 1)
+        self.assertTrue(len(g), 1)
         quads = list(g.quads((None,None,None)))
         self.assertEqual(quads, [(A, B, C, Graph(identifier=CTX1))])
 

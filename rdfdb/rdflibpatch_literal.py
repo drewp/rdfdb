@@ -15,11 +15,11 @@ def _literal_n3(self, use_plain=False, qname_callback=None):
             # we try to produce "pretty" output
             if self.datatype == _XSD_DOUBLE:
                 # this is the drewp fix
-                return sub(r"\.?0*e","e", u'%e' % float(self))
+                return sub(r"\.?0*e","e", '%e' % float(self))
             elif self.datatype == _XSD_DECIMAL:
-                return sub("0*$","0",u'%f' % float(self))
+                return sub("0*$","0",'%f' % float(self))
             else:
-                return u'%s' % self
+                return '%s' % self
         except ValueError:
             pass # if it's in, we let it out?
 
@@ -53,4 +53,4 @@ class TestDoubleOutput(unittest.TestCase):
         vv = Literal("0.88", datatype=_XSD_DOUBLE)
         out = _literal_n3(vv, use_plain=True)
         print(out)
-        self.assert_(out in ["8.8e-01", "0.88"], out)
+        self.assertTrue(out in ["8.8e-01", "0.88"], out)

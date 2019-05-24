@@ -1,4 +1,4 @@
-import logging, cyclone.httpclient, traceback, urllib
+import logging, cyclone.httpclient, traceback, urllib.request, urllib.parse, urllib.error
 from twisted.internet import reactor
 from rdfdb.patch import Patch
 log = logging.getLogger('syncedgraph')
@@ -27,7 +27,7 @@ class PatchReceiver(object):
 
     def _register(self, label):
         url = self.rdfdbRoot + 'graphClients'
-        body = urllib.urlencode([('clientUpdate', self.updateResource),
+        body = urllib.parse.urlencode([('clientUpdate', self.updateResource),
                                  ('label', label)])
         cyclone.httpclient.fetch(
             url=url,

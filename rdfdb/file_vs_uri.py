@@ -7,15 +7,15 @@ from rdflib import URIRef
 
 def uriFromFile(dirUriMap, filename):
     assert filename.endswith('.n3'), filename
-    for d, prefix in dirUriMap.items():
+    for d, prefix in list(dirUriMap.items()):
         if filename.startswith(d):
             return URIRef(prefix + filename[len(d):-len('.n3')])
     raise ValueError("filename %s doesn't start with any of %s" %
-                     (filename, dirUriMap.keys()))
+                     (filename, list(dirUriMap.keys())))
 
 def fileForUri(dirUriMap, ctx):
     assert isinstance(ctx, URIRef), ctx
-    for d, prefix in dirUriMap.items():
+    for d, prefix in list(dirUriMap.items()):
         if ctx.startswith(prefix):
             return d + ctx[len(prefix):] + '.n3'
     raise ValueError("don't know what filename to use for %s" % ctx)
@@ -29,5 +29,5 @@ def correctToTopdirPrefix(dirUriMap, inFile):
                 break
         else:
             raise ValueError("can't correct %s to start with one of %s" %
-                             (inFile, dirUriMap.keys()))
+                             (inFile, list(dirUriMap.keys())))
     return inFile

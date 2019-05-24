@@ -284,7 +284,7 @@ class GraphResource(cyclone.web.RequestHandler):
             format = 'nquads'
         elif accept == 'pickle':
             # don't use this; it's just for speed comparison
-            import cPickle as pickle
+            import pickle as pickle
             pickle.dump(self.settings.db.graph, self, protocol=2)
             return
         elif accept == 'msgpack':

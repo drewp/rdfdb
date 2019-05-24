@@ -70,7 +70,7 @@ class Patch(object):
         new = set(quadsWithContextUris(newGraph))
         return cls(addQuads=list(new - old), delQuads=list(old - new))
 
-    def __nonzero__(self):
+    def __bool__(self):
         """
         does this patch do anything to a graph?
         """
@@ -181,13 +181,13 @@ class TestPatchFromDiff(unittest.TestCase):
     def testEmpty(self):
         g = ConjunctiveGraph()
         p = Patch.fromDiff(g, g)
-        self.assert_(not p)
+        self.assertTrue(not p)
 
     def testNonEmpty(self):
         g1 = ConjunctiveGraph()
         g2 = graphFromQuads([stmt1])
         p = Patch.fromDiff(g1, g2)
-        self.assert_(p)
+        self.assertTrue(p)
 
     def testNoticesAdds(self):
         g1 = ConjunctiveGraph()

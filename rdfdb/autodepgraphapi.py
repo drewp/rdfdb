@@ -182,28 +182,28 @@ class _GraphWatchers(object):
         ret = set()
         affectedSubjPreds = set([(s, p) for s, p, o, c in patch.addQuads]+
                                 [(s, p) for s, p, o, c in patch.delQuads])
-        for (s, p), funcs in self._handlersSp.iteritems():
+        for (s, p), funcs in self._handlersSp.items():
             if (s, p) in affectedSubjPreds:
                 ret.update(funcs)
                 funcs.clear()
 
         affectedPredObjs = set([(p, o) for s, p, o, c in patch.addQuads]+
                                 [(p, o) for s, p, o, c in patch.delQuads])
-        for (p, o), funcs in self._handlersPo.iteritems():
+        for (p, o), funcs in self._handlersPo.items():
             if (p, o) in affectedPredObjs:
                 ret.update(funcs)
                 funcs.clear()
 
         affectedTriples = set([(s, p, o) for s, p, o, c in patch.addQuads]+
                               [(s, p, o) for s, p, o, c in patch.delQuads])
-        for triple, funcs in self._handlersSpo.iteritems():
+        for triple, funcs in self._handlersSpo.items():
             if triple in affectedTriples:
                 ret.update(funcs)
                 funcs.clear()
                 
         affectedSubjs = set([s for s, p, o, c in patch.addQuads]+
                             [s for s, p, o, c in patch.delQuads])
-        for subj, funcs in self._handlersS.iteritems():
+        for subj, funcs in self._handlersS.items():
             if subj in affectedSubjs:
                 ret.update(funcs)
                 funcs.clear()

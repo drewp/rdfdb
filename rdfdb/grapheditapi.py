@@ -113,5 +113,5 @@ class TestPatchSubgraph(unittest.TestCase):
         obj.patchSubgraph(URIRef('g'), [stmt1])
         self.assertEqual(len(appliedPatches), 1)
         p = appliedPatches[0]
-        self.assert_(p.isNoop())
+        self.assertTrue(p.isNoop())
         self.assertEqual(p.jsonRepr, '{"patch": {"adds": "", "deletes": ""}}')

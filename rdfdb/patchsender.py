@@ -1,4 +1,4 @@
-from __future__ import print_function
+
 import logging, time
 import cyclone.httpclient
 from twisted.internet import defer

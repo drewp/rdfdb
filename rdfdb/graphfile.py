@@ -184,7 +184,7 @@ class GraphFile(object):
             new.parse(location=self.path, format='n3')
             self.readPrefixes = dict(new.namespaces())
         except SyntaxError as e:
-            print e
+            print(e)
             traceback.print_exc()
             log.error("%s syntax error", self.path)
             # todo: likely bug- if a file has this error upon first
@@ -234,9 +234,9 @@ class GraphFile(object):
         tmpOut = self.path + ".rdfdb-temp"
         f = open(tmpOut, 'w')
         t1 = time.time()
-        for p, n in (self.globalPrefixes.items() +
-                     self.readPrefixes.items() +
-                     self.ctxPrefixes.items()):
+        for p, n in (list(self.globalPrefixes.items()) +
+                     list(self.readPrefixes.items()) +
+                     list(self.ctxPrefixes.items())):
             self.graphToWrite.bind(p, n)
         self.graphToWrite.serialize(destination=f, format='n3')
         serializeTime = time.time() - t1
