@@ -176,7 +176,7 @@ class TestPatchQuads(unittest.TestCase):
     def testAddsToNewContext(self):
         g = ConjunctiveGraph()
         patchQuads(g, [], [stmt1])
-        self.assertTrue(len(g), 1)
+        self.assertEqual(len(g), 1)
         quads = list(g.quads((None,None,None)))
         self.assertEqual(quads, [(A, B, C, Graph(identifier=CTX1))])
 
