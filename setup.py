@@ -12,7 +12,10 @@ setup(
         'rdflib-jsonld',
         'service_identity',
         ],
+    url='https://projects.bigasterisk.com/rdfdb/rdfdb-0.9.0.tar.gz',
+    author='Drew Perttula',
+    author_email='drewp@bigasterisk.com',
     entry_points={
-        'console_scripts': ['rdfdb=rdfdb.service:main'],
+      'console_scripts': ['rdfdb=rdfdb.service:main'],
     },
  )
