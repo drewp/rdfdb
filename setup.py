@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
  
 setup(
     name='rdfdb',
-    version='0.9.0',
+    version='0.11.0',
     packages=find_packages(),
     install_requires=[
         'rdflib',
