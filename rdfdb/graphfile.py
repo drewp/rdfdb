@@ -2,9 +2,10 @@ import logging, traceback, os, time
 from twisted.python.filepath import FilePath
 from twisted.internet import reactor
 from twisted.internet.inotify import humanReadableMask
-from rdflib import Graph, RDF
+from rdflib import Graph, RDF, URIRef
 from rdfdb.patch import Patch
 from rdfdb.rdflibpatch import inContext
+from typing import Dict
 
 log = logging.getLogger('graphfile')
 iolog = logging.getLogger('io')
@@ -20,7 +21,7 @@ def patchN3SerializerToUseLessWhitespace(cutColumn=65):
         else:
             self._column += len(lines[0])
         return originalWrite(self, s)
-    TurtleSerializer.write = write
+    TurtleSerializer.write = write # type: ignore
     def predicateList(self, subject, newline=False):
         properties = self.buildPredicateHash(subject)
         propList = self.sortProperties(properties)
@@ -53,9 +54,9 @@ def patchN3SerializerToUseLessWhitespace(cutColumn=65):
             self.write('\n')
         originalStatement(self, subject)
         return False         #  suppress blank line for 'minor' statements
-    TurtleSerializer.statement = statement
-    TurtleSerializer.predicateList = predicateList
-    TurtleSerializer.objectList = objectList
+    TurtleSerializer.statement = statement  # type: ignore
+    TurtleSerializer.predicateList = predicateList  # type: ignore
+    TurtleSerializer.objectList = objectList  # type: ignore
 
 patchN3SerializerToUseLessWhitespace()
 
@@ -80,7 +81,7 @@ class GraphFile(object):
 
         self.globalPrefixes = globalPrefixes
         self.ctxPrefixes = ctxPrefixes
-        self.readPrefixes = {}
+        self.readPrefixes: Dict[str, URIRef] = {}
         
         if not os.path.exists(path):
             # can't start notify until file exists

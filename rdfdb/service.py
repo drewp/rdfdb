@@ -5,7 +5,7 @@ from twisted.python.failure import Failure
 from twisted.internet.inotify import humanReadableMask, IN_CREATE
 import sys, optparse, logging, json, os
 import cyclone.web, cyclone.httpclient, cyclone.websocket
-from typing import Set
+from typing import Dict, List, Set
 
 from rdflib import ConjunctiveGraph, URIRef, Graph
 from rdfdb.graphfile import GraphFile
@@ -75,7 +75,7 @@ class WatchedFiles(object):
         self.patch, self.getSubgraph = patch, getSubgraph
         self.addlPrefixes = addlPrefixes
         
-        self.graphFiles = {} # context uri : GraphFile
+        self.graphFiles: Dict[URIRef, GraphFile] = {} # context uri : GraphFile
         
         self.notifier = INotify()
         self.notifier.startReading()
@@ -190,7 +190,7 @@ class Db(object):
     """
     def __init__(self, dirUriMap, addlPrefixes):
       
-        self.clients = []
+        self.clients: List[Client] = []
         self.graph = ConjunctiveGraph()
 
         self.watchedFiles = WatchedFiles(dirUriMap,

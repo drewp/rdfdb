@@ -1,5 +1,6 @@
 import logging
-from rdflib import RDF, RDFS
+from typing import Callable, Dict, Set, Tuple
+from rdflib import RDF, RDFS, URIRef
 from rdfdb.currentstategraphapi import contextsForStatementNoWildcards
 log = logging.getLogger('autodepgraphapi')
 
@@ -20,7 +21,7 @@ class AutoDepGraphApi(object):
 
     def __init__(self):
         self._watchers = _GraphWatchers()
-        self.currentFuncs = [] # stack of addHandler callers
+        self.currentFuncs: Callable[[], None] = [] # stack of addHandler callers
     
     def addHandler(self, func):
         """
@@ -143,16 +144,17 @@ class AutoDepGraphApi(object):
     # I'm going to be repeating that logic a lot. Maybe just for the
     # subjects(RDF.type, t) call
 
+HandlerSet = Set[Callable[[], None]]
 
 class _GraphWatchers(object):
     """
     store the current handlers that care about graph changes
     """
     def __init__(self):
-        self._handlersSp = {} # (s,p): set(handlers)
-        self._handlersPo = {} # (p,o): set(handlers)
-        self._handlersSpo = {} # (s,p,o): set(handlers)
-        self._handlersS = {} # s: set(handlers)
+        self._handlersSp: Dict[Tuple[URIRef, URIRef], HandlerSet] = {} # (s,p): set(handlers)
+        self._handlersPo: Dict[Tuple[URIRef, URIRef], HandlerSet] = {} # (p,o): set(handlers)
+        self._handlersSpo: Dict[Tuple[URIRef, URIRef, URIRef], HandlerSet] = {} # (s,p,o): set(handlers)
+        self._handlersS: Dict[URIRef, HandlerSet] = {} # s: set(handlers)
 
     def addSubjPredWatcher(self, func, s, p):
         if func is None:
@@ -179,7 +181,7 @@ class _GraphWatchers(object):
         this removes the handlers that it gives you
         """
         #self.dependencies()
-        ret = set()
+        ret: Set[Callable[[], None]] = set()
         affectedSubjPreds = set([(s, p) for s, p, o, c in patch.addQuads]+
                                 [(s, p) for s, p, o, c in patch.delQuads])
         for (s, p), funcs in self._handlersSp.items():

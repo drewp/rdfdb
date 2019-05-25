@@ -1,5 +1,5 @@
 import logging, traceback, time, itertools
-from rdflib import ConjunctiveGraph
+from rdflib import ConjunctiveGraph, URIRef
 from rdfdb.rdflibpatch import contextsForStatement as rp_contextsForStatement
 log = logging.getLogger("currentstate")
 
@@ -16,6 +16,9 @@ class ReadOnlyConjunctiveGraph(object):
 
     def __len__(self):
         return len(self.graph)
+
+    def contextsForStatement(self, stmt):
+        raise NotImplementedError
 
 
 class CurrentStateGraphApi(object):
@@ -51,7 +54,8 @@ class CurrentStateGraphApi(object):
                     if tripleFilter == (None, None, None):
                         self2.logThisCopy(g, time.time() - t1)
                     
-                g.contextsForStatement = lambda t: contextsForStatementNoWildcards(g, t)
+                setattr(g, 'contextsForStatement',
+                        lambda t: contextsForStatementNoWildcards(g, t))
                 return g
 
             def logThisCopy(self, g, sec):
@@ -66,17 +70,19 @@ class CurrentStateGraphApi(object):
 
         return Mgr()
 
+    _reservedSequentials = None # Optional[Set[URIRef]]
+    
     def sequentialUri(self, prefix):
         """
         Prefix URIRef like http://example.com/r- will return
         http://example.com/r-1 if that uri is not a subject in the graph,
         or else http://example.com/r-2, etc
         """
+        if self._reservedSequentials is None:
+            self._reservedSequentials = set()
         for i in itertools.count(1):
-            newUri = prefix + str(i)
-            if not list(self._graph.triples((newUri, None, None))) and newUri not in getattr(self, '_reservedSequentials', []):
-                if not hasattr(self, '_reservedSequentials'):
-                    self._reservedSequentials = set()
+            newUri = URIRef(prefix + str(i))
+            if newUri not in self._reservedSequentials and not list(self._graph.triples((newUri, None, None))):
                 self._reservedSequentials.add(newUri)
                 return newUri
 

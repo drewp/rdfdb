@@ -1,7 +1,8 @@
-
 import logging, time
+from typing import List
 import cyclone.httpclient
 from twisted.internet import defer
+from rdfdb.patch import Patch
 log = logging.getLogger('syncedgraph')
 
 class PatchSender(object):
@@ -20,11 +21,11 @@ class PatchSender(object):
         """
         self.target = target
         self.myUpdateResource = myUpdateResource
-        self._patchesToSend = []
+        self._patchesToSend: List[Patch] = []
         self._currentSendPatchRequest = None
 
     def sendPatch(self, p):
-        sendResult = defer.Deferred()
+        sendResult: defer.Deferred[None] = defer.Deferred()
         self._patchesToSend.append((p, sendResult))
         self._continueSending()
         return sendResult

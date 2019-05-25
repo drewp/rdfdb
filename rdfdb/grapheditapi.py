@@ -106,6 +106,7 @@ class TestPatchSubgraph(unittest.TestCase):
         class Obj(GraphEditApi):
             def patch(self, p):
                 appliedPatches.append(p)
+            _graph: ConjunctiveGraph
         obj = Obj()
         obj._graph = ConjunctiveGraph()
         stmt1 = (URIRef('s'), URIRef('p'), URIRef('o'), URIRef('g'))

@@ -64,7 +64,7 @@ class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
             receiverHost = socket.gethostname()
         
         self.rdfdbRoot = rdfdbRoot
-        self.initiallySynced = defer.Deferred()
+        self.initiallySynced: defer.Deferred[None] = defer.Deferred()
         self._graph = ConjunctiveGraph()
 
         self._receiver = PatchReceiver(self.rdfdbRoot, receiverHost, label, self._onPatch)
@@ -94,8 +94,8 @@ class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
         # this should be locked so only one resync goes on at once
         return cyclone.httpclient.fetch(
             url=self.rdfdbRoot + "graph",
-            method="GET",
-            headers={'Accept':['x-trig']},
+            method=b"GET",
+            headers={b'Accept':[b'x-trig']},
             ).addCallback(self._resyncGraph)
 
     def _resyncGraph(self, response):
