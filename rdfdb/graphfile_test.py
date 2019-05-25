@@ -7,7 +7,7 @@ from rdfdb.graphfile import GraphFile
 class TestGraphFileOutput(unittest.TestCase):
     def testMaintainsN3PrefixesFromInput(self):
         tf = tempfile.NamedTemporaryFile(suffix='_test.n3')
-        tf.write('''
+        tf.write(b'''
         @prefix : <http://example.com/> .
         @prefix n: <http://example.com/n/> .
         :foo n:bar :baz .
@@ -25,8 +25,8 @@ class TestGraphFileOutput(unittest.TestCase):
                       URIRef('http://example.com/other/ns')))
         gf.dirty(newGraph)
         gf.flush()
-        wroteContent = open(tf.name).read()
-        self.assertEqual('''@prefix : <http://example.com/> .
+        wroteContent = open(tf.name, 'rb').read()
+        self.assertEqual(b'''@prefix : <http://example.com/> .
 @prefix n: <http://example.com/n/> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .

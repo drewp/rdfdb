@@ -233,13 +233,13 @@ class GraphFile(object):
         self.writeCall = None
 
         tmpOut = self.path + ".rdfdb-temp"
-        f = open(tmpOut, 'w')
+        f = open(tmpOut, 'wb')
         t1 = time.time()
         for p, n in (list(self.globalPrefixes.items()) +
                      list(self.readPrefixes.items()) +
                      list(self.ctxPrefixes.items())):
             self.graphToWrite.bind(p, n)
-        self.graphToWrite.serialize(destination=f, format='n3')
+        self.graphToWrite.serialize(destination=f, format='n3', encoding='utf8')
         serializeTime = time.time() - t1
         f.close()
         self.lastWriteTimestamp = os.path.getmtime(tmpOut)
