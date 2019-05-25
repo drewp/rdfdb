@@ -26,13 +26,13 @@ class PatchReceiver(object):
         self._register(label)
 
     def _register(self, label):
-        url = self.rdfdbRoot + 'graphClients'
-        body = urllib.parse.urlencode([('clientUpdate', self.updateResource),
-                                 ('label', label)])
+        url = (self.rdfdbRoot + 'graphClients').encode('utf8')
+        body = urllib.parse.urlencode([(b'clientUpdate', self.updateResource),
+                                       (b'label', label)]).encode('utf8')
         cyclone.httpclient.fetch(
             url=url,
-            method='POST',
-            headers={'Content-Type': ['application/x-www-form-urlencoded']},
+            method=b'POST',
+            headers={b'Content-Type': [b'application/x-www-form-urlencoded']},
             postdata=body,
             ).addCallbacks(self._done,
                            lambda err: self._registerError(err, url, body))

@@ -115,7 +115,7 @@ def sendPatch(putUri, patch, **kw):
 
     return cyclone.httpclient.fetch(
         url=putUri,
-        method='PUT',
-        headers={'Content-Type': ['application/json']},
+        method=b'PUT',
+        headers={b'Content-Type': [b'application/json']},
         postdata=body,
         ).addCallback(putDone)

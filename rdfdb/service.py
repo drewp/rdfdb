@@ -5,6 +5,7 @@ from twisted.python.failure import Failure
 from twisted.internet.inotify import humanReadableMask, IN_CREATE
 import sys, optparse, logging, json, os
 import cyclone.web, cyclone.httpclient, cyclone.websocket
+from typing import Set
 
 from rdflib import ConjunctiveGraph, URIRef, Graph
 from rdfdb.graphfile import GraphFile
@@ -34,7 +35,7 @@ class Client(object):
     """
     one of our syncedgraph clients
     """
-    def __init__(self, updateUri, label):
+    def __init__(self, updateUri: bytes, label):
         self.label = label
         # todo: updateUri is used publicly to compare clients. Replace
         # it with Client.__eq__ so WsClient doesn't have to fake an
@@ -306,7 +307,7 @@ class GraphClients(cyclone.web.RequestHandler):
         pass
 
     def post(self):
-        upd = self.get_argument("clientUpdate")
+        upd = self.get_argument("clientUpdate").encode('utf8')
         try:
             self.settings.db.addClient(Client(upd, self.get_argument("label")))
         except:
@@ -346,7 +347,7 @@ class WebsocketClient(cyclone.websocket.WebSocketHandler):
         p.senderUpdateUri = self.wsClient.updateUri
         self.settings.db.patch(p)
 
-liveClients = set()
+liveClients: Set[Live] = set()
 def sendToLiveClients(d=None, asJson=None):
     j = asJson or json.dumps(d)
     for c in liveClients:
