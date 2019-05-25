@@ -2,7 +2,7 @@ from twisted.internet import reactor, defer
 import twisted.internet.error
 from twisted.python.filepath import FilePath
 from twisted.python.failure import Failure
-from twisted.internet.inotify import humanReadableMask, IN_CREATE
+from twisted.internet.inotify import IN_CREATE
 import sys, optparse, logging, json, os
 import cyclone.web, cyclone.httpclient, cyclone.websocket
 from typing import Dict, List, Set
@@ -151,8 +151,6 @@ class WatchedFiles(object):
         the triples from a new file. Calling this before patching the
         graph is still a reasonable thing to do, though.
         """
-        g = self.getSubgraph(ctx)
-
         if ctx not in self.graphFiles:
             outFile = fileForUri(self.dirUriMap, ctx)
             assert '//' not in outFile, (outFile, self.dirUriMap, ctx)
@@ -347,12 +345,6 @@ class WebsocketClient(cyclone.websocket.WebSocketHandler):
         p.senderUpdateUri = self.wsClient.updateUri
         self.settings.db.patch(p)
 
-liveClients: Set[Live] = set()
-def sendToLiveClients(d=None, asJson=None):
-    j = asJson or json.dumps(d)
-    for c in liveClients:
-        c.sendMessage(j)
-
 class Live(cyclone.websocket.WebSocketHandler):
 
     def connectionMade(self, *args, **kwargs):
@@ -367,6 +359,12 @@ class Live(cyclone.websocket.WebSocketHandler):
     def messageReceived(self, message):
         log.info("got message %s" % message)
         self.sendMessage(message)
+
+liveClients: Set[Live] = set()
+def sendToLiveClients(d=None, asJson=None):
+    j = asJson or json.dumps(d)
+    for c in liveClients:
+        c.sendMessage(j)
 
 class NoExts(cyclone.web.StaticFileHandler):
     # .html pages can be get() without .html on them

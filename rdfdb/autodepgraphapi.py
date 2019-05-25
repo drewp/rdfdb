@@ -136,7 +136,7 @@ class AutoDepGraphApi(object):
         """currently this needs to be in an addHandler section, but it
         sets no watchers so it won't actually update if the statement
         was added or dropped from contexts"""
-        func = self._getCurrentFunc()
+        #func = self._getCurrentFunc()
         return contextsForStatementNoWildcards(self._graph, triple)
 
     # i find myself wanting 'patch' (aka enter/leave) versions of these calls that tell

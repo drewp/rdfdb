@@ -115,7 +115,7 @@ class GraphFile(object):
         # bug left is that we'll retry too agressively on a file
         # that's being written
 
-        from twisted.internet.inotify import IN_CLOSE_WRITE, IN_MOVED_FROM, IN_MODIFY, IN_DELETE, IN_DELETE_SELF, IN_CHANGED
+        # See twisted.internet.inotify for IN_CHANGED event, etc.
 
         log.info("add watch on %s", self.path)
         self.notifier.watch(FilePath(self.path), callbacks=[self.notify])

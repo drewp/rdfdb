@@ -4,4 +4,4 @@ WORKDIR /opt
 
 RUN pip3 install --index-url https://projects.bigasterisk.com/ --extra-index-url https://pypi.org/simple rdflib cyclone mock treq rdflib-jsonld service_identity
 
-RUN pip3 install --index-url https://projects.bigasterisk.com/ --extra-index-url https://pypi.org/simple mypy nose2
+RUN pip3 install --index-url https://projects.bigasterisk.com/ --extra-index-url https://pypi.org/simple mypy nose2 pyflakes
