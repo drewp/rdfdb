@@ -35,7 +35,7 @@ class Client(object):
     """
     one of our syncedgraph clients
     """
-    def __init__(self, updateUri: bytes, label):
+    def __init__(self, updateUri: bytes, label: str):
         self.label = label
         # todo: updateUri is used publicly to compare clients. Replace
         # it with Client.__eq__ so WsClient doesn't have to fake an
@@ -268,9 +268,9 @@ class Db(object):
         self.clients.append(newClient)
         self.sendClientsToAllLivePages()
 
-    def sendClientsToAllLivePages(self):
-        sendToLiveClients({"clients":[
-            dict(updateUri=c.updateUri, label=repr(c))
+    def sendClientsToAllLivePages(self) -> None:
+        sendToLiveClients({"clients": [
+            dict(updateUri=c.updateUri.decode('utf8'), label=repr(c))
             for c in self.clients]})
 
 class GraphResource(cyclone.web.RequestHandler):
