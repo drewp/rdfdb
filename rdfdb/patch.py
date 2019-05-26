@@ -1,5 +1,6 @@
 import json, unittest
 from rdflib import ConjunctiveGraph, Graph, URIRef, URIRef as U, Literal, Namespace
+from typing import Optional
 XSD = Namespace("http://www.w3.org/2001/XMLSchema#")
 
 
@@ -27,7 +28,8 @@ class Patch(object):
     
     the json representation includes the {"patch":...} wrapper
     """
-    def __init__(self, jsonRepr=None, addQuads=None, delQuads=None,
+    def __init__(self, jsonRepr: Optional[str]=None,
+                 addQuads=None, delQuads=None,
                  addGraph=None, delGraph=None):
         """
         addQuads/delQuads can be lists or sets, but if we make them internally,
@@ -110,12 +112,12 @@ class Patch(object):
         return self._delGraph
 
     @property
-    def jsonRepr(self) -> bytes:
+    def jsonRepr(self) -> str:
         if self._jsonRepr is None:
             self._jsonRepr = self.makeJsonRepr()
         return self._jsonRepr
 
-    def makeJsonRepr(self, extraAttrs={}) -> bytes:
+    def makeJsonRepr(self, extraAttrs={}) -> str:
         d = {"patch" : {
             'adds' : serializeQuad(self.addGraph),
             'deletes' : serializeQuad(self.delGraph),
@@ -126,7 +128,7 @@ class Patch(object):
         if '[<' in d['patch']['adds']:
             raise ValueError("[< found in %s" % d['patch']['adds'])
         d.update(extraAttrs)
-        return json.dumps(d).encode('utf8')
+        return json.dumps(d)
 
     def simplify(self):
         adds = set(self.addQuads)

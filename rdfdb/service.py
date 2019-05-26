@@ -53,7 +53,7 @@ class Client(object):
         return sendPatch(self.updateUri, p)
         
 class WsClient(object):
-    def __init__(self, connectionId, sendMessage):
+    def __init__(self, connectionId: bytes, sendMessage):
         self.updateUri = connectionId
         self.sendMessage = sendMessage
 
@@ -325,7 +325,7 @@ class WebsocketClient(cyclone.websocket.WebSocketHandler):
     wsClient: Optional[WsClient] = None
     def connectionMade(self, *args, **kwargs):
         global _wsClientSerial
-        connectionId = 'connection-%s' % _wsClientSerial
+        connectionId = ('connection-%s' % _wsClientSerial).encode('utf8')
         _wsClientSerial += 1
 
         self.wsClient = WsClient(connectionId, self.sendMessage)
@@ -337,12 +337,12 @@ class WebsocketClient(cyclone.websocket.WebSocketHandler):
         self.settings.db.clientErrored(
             Failure(WebsocketDisconnect(reason)), self.wsClient)
 
-    def messageReceived(self, message):
-        if message == 'PING':
+    def messageReceived(self, message: bytes):
+        if message == b'PING':
             self.sendMessage('PONG')
             return
         log.info("got message from %r: %s", self.wsClient, message)
-        p = Patch(jsonRepr=message)
+        p = Patch(jsonRepr=message.decode('utf8'))
         p.senderUpdateUri = self.wsClient.updateUri
         self.settings.db.patch(p)
 
