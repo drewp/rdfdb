@@ -3,6 +3,7 @@ from typing import List
 import cyclone.httpclient
 from twisted.internet import defer
 from rdfdb.patch import Patch
+
 log = logging.getLogger('syncedgraph')
 
 class PatchSender(object):
@@ -92,7 +93,7 @@ class PatchSender(object):
         log.error(e)
         self._continueSending()
 
-def sendPatch(putUri, patch, **kw):
+def sendPatch(putUri, patch, **kw) -> defer.Deferred:
     """
     PUT a patch as json to an http server. Returns deferred.
     
@@ -101,7 +102,7 @@ def sendPatch(putUri, patch, **kw):
     t1 = time.time()
     body = patch.makeJsonRepr(kw)
     jsonTime = time.time() - t1
-    intro = body[:200]
+    intro = body[:200].decode('utf8')
     if len(body) > 200:
         intro = intro + "..."
     log.debug("send body (rendered %.1fkB in %.1fms): %s", len(body) / 1024, jsonTime * 1000, intro)

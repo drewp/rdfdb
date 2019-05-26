@@ -5,7 +5,7 @@ from twisted.python.failure import Failure
 from twisted.internet.inotify import IN_CREATE
 import sys, optparse, logging, json, os
 import cyclone.web, cyclone.httpclient, cyclone.websocket
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Optional
 
 from rdflib import ConjunctiveGraph, URIRef, Graph
 from rdfdb.graphfile import GraphFile
@@ -96,13 +96,13 @@ class WatchedFiles(object):
 
     def dirChange(self, watch, path, mask):
         if mask & IN_CREATE:
-            if path.path.endswith(('~', '.swp', 'swx', '.rdfdb-temp')):
+            if path.path.endswith((b'~', b'.swp', b'swx', b'.rdfdb-temp')):
                 return
                 
             log.debug("%s created; consider adding a watch", path)
             self.watchFile(path.path)
             
-    def watchFile(self, inFile):
+    def watchFile(self, inFile: bytes):
         """
         consider adding a GraphFile to self.graphFiles
 
@@ -322,6 +322,7 @@ class Prefixes(cyclone.web.RequestHandler):
 _wsClientSerial = 0
 class WebsocketClient(cyclone.websocket.WebSocketHandler):
 
+    wsClient: Optional[WsClient] = None
     def connectionMade(self, *args, **kwargs):
         global _wsClientSerial
         connectionId = 'connection-%s' % _wsClientSerial

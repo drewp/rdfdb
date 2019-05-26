@@ -110,12 +110,12 @@ class Patch(object):
         return self._delGraph
 
     @property
-    def jsonRepr(self):
+    def jsonRepr(self) -> bytes:
         if self._jsonRepr is None:
             self._jsonRepr = self.makeJsonRepr()
         return self._jsonRepr
 
-    def makeJsonRepr(self, extraAttrs={}):
+    def makeJsonRepr(self, extraAttrs={}) -> bytes:
         d = {"patch" : {
             'adds' : serializeQuad(self.addGraph),
             'deletes' : serializeQuad(self.delGraph),
@@ -126,7 +126,7 @@ class Patch(object):
         if '[<' in d['patch']['adds']:
             raise ValueError("[< found in %s" % d['patch']['adds'])
         d.update(extraAttrs)
-        return json.dumps(d)
+        return json.dumps(d).encode('utf8')
 
     def simplify(self):
         adds = set(self.addQuads)
