@@ -140,7 +140,8 @@ class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
         prefixes. async, not guaranteed to finish before any
         particular file flush
         """
-        treq.post(self.rdfdbRoot + 'prefixes', json.dumps({'ctx': ctx, 'prefixes': prefixes}))
+        treq.post(self.rdfdbRoot + 'prefixes',
+                  json.dumps({'ctx': ctx, 'prefixes': prefixes}).encode('utf8'))
 
     def sendFailed(self, result):
         """
