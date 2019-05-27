@@ -1,8 +1,10 @@
 import logging, time
 from typing import List, Tuple, Optional
-import treq
+
 from rdflib import URIRef
 from twisted.internet import defer
+import treq
+
 from rdfdb.patch import Patch
 
 log = logging.getLogger('syncedgraph')

@@ -5,7 +5,7 @@ from twisted.internet import reactor, defer
 from twisted.internet.inotify import IN_CREATE, INotify
 from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
-import cyclone.web, cyclone.httpclient, cyclone.websocket
+import cyclone.web, cyclone.websocket
 from rdflib import ConjunctiveGraph, URIRef, Graph
 import twisted.internet.error
 

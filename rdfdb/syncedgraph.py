@@ -16,25 +16,27 @@ PatchReceiver - our web server that listens to edits from the master graph
 PatchSender - collects and transmits your graph edits
 """
 
-from rdflib import ConjunctiveGraph, URIRef
-import logging, cyclone.httpclient, traceback
-from twisted.internet import defer
-import socket
-import treq, json
-log = logging.getLogger('syncedgraph')
-from rdfdb.rdflibpatch import patchQuads
+import json, logging, traceback
 from typing import Optional
 
-from rdfdb.patchsender import PatchSender
-from rdfdb.patchreceiver import PatchReceiver
-from rdfdb.currentstategraphapi import CurrentStateGraphApi
+from rdflib import ConjunctiveGraph, URIRef
+from twisted.internet import defer
+import socket
+import treq
+
 from rdfdb.autodepgraphapi import AutoDepGraphApi
+from rdfdb.currentstategraphapi import CurrentStateGraphApi
 from rdfdb.grapheditapi import GraphEditApi
 from rdfdb.patch import Patch
+from rdfdb.patchreceiver import PatchReceiver
+from rdfdb.patchsender import PatchSender
+from rdfdb.rdflibpatch import patchQuads
 
 # everybody who writes literals needs to get this
 from rdfdb.rdflibpatch_literal import patch
 patch()
+
+log = logging.getLogger('syncedgraph')
 
 
 class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
@@ -99,9 +101,7 @@ class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
         log.info('resync')
         self._sender.cancelAll()
         # this should be locked so only one resync goes on at once
-        return cyclone.httpclient.fetch(
-            url=self.rdfdbRoot + "graph",
-            method=b"GET",
+        return treq.get(self.rdfdbRoot.toPython() + "graph",
             headers={
                 b'Accept': [b'x-trig']
             },

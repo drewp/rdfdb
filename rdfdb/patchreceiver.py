@@ -1,7 +1,11 @@
 import logging, traceback, urllib.request, urllib.parse, urllib.error
-import cyclone.web, cyclone.httpclient
+
 from twisted.internet import reactor
+import cyclone.web
+import treq
+
 from rdfdb.patch import Patch
+
 log = logging.getLogger('syncedgraph')
 
 
@@ -34,15 +38,12 @@ class PatchReceiver(object):
         url = (self.rdfdbRoot + 'graphClients').encode('utf8')
         body = urllib.parse.urlencode([(b'clientUpdate', self.updateResource),
                                        (b'label', label)]).encode('utf8')
-        cyclone.httpclient.fetch(
-            url=url,
-            method=b'POST',
-            headers={
-                b'Content-Type': [b'application/x-www-form-urlencoded']
-            },
-            postdata=body,
-        ).addCallbacks(
-            self._done, lambda err: self._registerError(err, url, body))
+        treq.post(url, data=body, headers={
+            b'Content-Type': [b'application/x-www-form-urlencoded']
+        }).addCallbacks(
+            self._done,
+            lambda err: self._registerError(err, url, body)
+        )
         log.info("registering with rdfdb at %s", url)
 
     def _registerError(self, err, url, body):
