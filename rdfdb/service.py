@@ -5,13 +5,13 @@ from twisted.python.failure import Failure
 from twisted.internet.inotify import IN_CREATE
 import sys, optparse, logging, json, os
 import cyclone.web, cyclone.httpclient, cyclone.websocket
-from typing import Dict, List, Set, Optional
+from typing import Dict, List, Set, Optional, Union
 
 from rdflib import ConjunctiveGraph, URIRef, Graph
 from rdfdb.graphfile import GraphFile
 from rdfdb.patch import Patch, ALLSTMTS
 from rdfdb.rdflibpatch import patchQuads
-from rdfdb.file_vs_uri import correctToTopdirPrefix, fileForUri, uriFromFile
+from rdfdb.file_vs_uri import correctToTopdirPrefix, fileForUri, uriFromFile, DirUriMap
 from rdfdb.patchsender import sendPatch
 from rdfdb.patchreceiver import makePatchEndpointPutMethod
 
@@ -22,20 +22,13 @@ log.setLevel(logging.DEBUG)
 
 class WebsocketDisconnect(ValueError):
     pass
-
-def sendGraphToClient(graph, client):
-    """send the client the whole graph contents"""
-    log.info("sending all graphs to %r" % client)
-    client.sendPatch(Patch(
-        addQuads=graph.quads(ALLSTMTS),
-        delQuads=[]))
     
 
 class Client(object):
     """
     one of our syncedgraph clients
     """
-    def __init__(self, updateUri: bytes, label: str):
+    def __init__(self, updateUri: URIRef, label: str):
         self.label = label
         # todo: updateUri is used publicly to compare clients. Replace
         # it with Client.__eq__ so WsClient doesn't have to fake an
@@ -45,7 +38,7 @@ class Client(object):
     def __repr__(self):
         return "<%s client at %s>" % (self.label, self.updateUri)
 
-    def sendPatch(self, p):
+    def sendPatch(self, p: Patch) -> defer.Deferred:
         """
         returns deferred. error will be interpreted as the client being
         broken.
@@ -53,16 +46,23 @@ class Client(object):
         return sendPatch(self.updateUri, p)
         
 class WsClient(object):
-    def __init__(self, connectionId: bytes, sendMessage):
-        self.updateUri = connectionId
+    def __init__(self, connectionId: str, sendMessage):
+        self.updateUri = URIRef(connectionId)
         self.sendMessage = sendMessage
 
     def __repr__(self):
         return "<WsClient %s>" % self.updateUri
 
-    def sendPatch(self, p):
+    def sendPatch(self, p: Patch) -> defer.Deferred:
         self.sendMessage(p.makeJsonRepr())
         return defer.succeed(None)
+
+def sendGraphToClient(graph, client: Union[Client, WsClient]) -> None:
+    """send the client the whole graph contents"""
+    log.info("sending all graphs to %r" % client)
+    client.sendPatch(Patch(
+        addQuads=graph.quads(ALLSTMTS),
+        delQuads=[]))
         
 class WatchedFiles(object):
     """
@@ -70,7 +70,7 @@ class WatchedFiles(object):
 
     This object watches directories. Each GraphFile watches its own file.
     """
-    def __init__(self, dirUriMap, patch, getSubgraph, addlPrefixes):
+    def __init__(self, dirUriMap: DirUriMap, patch, getSubgraph, addlPrefixes):
         self.dirUriMap = dirUriMap # {abspath : uri prefix}
         self.patch, self.getSubgraph = patch, getSubgraph
         self.addlPrefixes = addlPrefixes
@@ -82,19 +82,22 @@ class WatchedFiles(object):
         
         self.findAndLoadFiles()
 
-    def findAndLoadFiles(self):
+    def findAndLoadFiles(self) -> None:
         self.initialLoad = True
         try:
             for topdir in self.dirUriMap:
                 for dirpath, dirnames, filenames in os.walk(topdir):
                     for base in filenames:
-                        self.watchFile(os.path.join(dirpath, base))
+                        p = os.path.join(dirpath, base)
+                        # why wasn't mypy catching this?
+                        assert isinstance(p, bytes)
+                        self.watchFile(p)
                     self.notifier.watch(FilePath(dirpath), autoAdd=True,
                                         callbacks=[self.dirChange])
         finally:
             self.initialLoad = False
 
-    def dirChange(self, watch, path, mask):
+    def dirChange(self, watch, path: FilePath, mask):
         if mask & IN_CREATE:
             if path.path.endswith((b'~', b'.swp', b'swx', b'.rdfdb-temp')):
                 return
@@ -114,10 +117,10 @@ class WatchedFiles(object):
             return
 
         inFile = correctToTopdirPrefix(self.dirUriMap, inFile)
-        if os.path.splitext(inFile)[1] not in ['.n3']:
+        if os.path.splitext(inFile)[1] not in [b'.n3']:
             return
 
-        if '/capture/' in inFile:
+        if b'/capture/' in inFile:
             # smaller graph for now
             return
             
@@ -126,13 +129,13 @@ class WatchedFiles(object):
         # SyncedGraph calls graphFromNQuad on the incoming data and
         # has a parse error. I'm not sure where this should be fixed
         # yet.
-        if '-rules' in inFile:
+        if b'-rules' in inFile:
             return
 
         # for legacy versions, compile all the config stuff you want
         # read into one file called config.n3. New versions won't read
         # it.
-        if inFile.endswith("config.n3"):
+        if inFile.endswith(b"config.n3"):
             return
             
         ctx = uriFromFile(self.dirUriMap, inFile)
@@ -186,9 +189,8 @@ class Db(object):
     """
     the master graph, all the connected clients, all the files we're watching
     """
-    def __init__(self, dirUriMap, addlPrefixes):
-      
-        self.clients: List[Client] = []
+    def __init__(self, dirUriMap: DirUriMap, addlPrefixes):
+        self.clients: List[Union[Client, WsClient]] = []
         self.graph = ConjunctiveGraph()
 
         self.watchedFiles = WatchedFiles(dirUriMap,
@@ -259,9 +261,10 @@ class Db(object):
             g.add(s)
         return g
 
-    def addClient(self, newClient):
-        [self.clients.remove(c)
-         for c in self.clients if c.updateUri == newClient.updateUri]
+    def addClient(self, newClient: Union[Client, WsClient]) -> None:
+        for c in self.clients:
+            if c.updateUri == newClient.updateUri:
+                self.clients.remove(c)
 
         log.info("new client %r" % newClient)
         sendGraphToClient(self.graph, newClient)
@@ -270,7 +273,7 @@ class Db(object):
 
     def sendClientsToAllLivePages(self) -> None:
         sendToLiveClients({"clients": [
-            dict(updateUri=c.updateUri.decode('utf8'), label=repr(c))
+            dict(updateUri=c.updateUri.toPython(), label=repr(c))
             for c in self.clients]})
 
 class GraphResource(cyclone.web.RequestHandler):
@@ -304,8 +307,8 @@ class GraphClients(cyclone.web.RequestHandler):
     def get(self):
         pass
 
-    def post(self):
-        upd = self.get_argument("clientUpdate").encode('utf8')
+    def post(self) -> None:
+        upd = URIRef(self.get_argument("clientUpdate"))
         try:
             self.settings.db.addClient(Client(upd, self.get_argument("label")))
         except:
@@ -323,9 +326,9 @@ _wsClientSerial = 0
 class WebsocketClient(cyclone.websocket.WebSocketHandler):
 
     wsClient: Optional[WsClient] = None
-    def connectionMade(self, *args, **kwargs):
+    def connectionMade(self, *args, **kwargs) -> None:
         global _wsClientSerial
-        connectionId = ('connection-%s' % _wsClientSerial).encode('utf8')
+        connectionId = f'connection-{_wsClientSerial}'
         _wsClientSerial += 1
 
         self.wsClient = WsClient(connectionId, self.sendMessage)
@@ -343,6 +346,7 @@ class WebsocketClient(cyclone.websocket.WebSocketHandler):
             return
         log.info("got message from %r: %s", self.wsClient, message)
         p = Patch(jsonRepr=message.decode('utf8'))
+        assert self.wsClient is not None
         p.senderUpdateUri = self.wsClient.updateUri
         self.settings.db.patch(p)
 
@@ -375,15 +379,17 @@ class NoExts(cyclone.web.StaticFileHandler):
         cyclone.web.StaticFileHandler.get(self, path, *args, **kw)
 
 
-def main(dirUriMap=None, prefixes=None, port=9999):
+def main(dirUriMap: Optional[DirUriMap]=None,
+         prefixes: Optional[Dict[str, URIRef]]=None,
+         port=9999):
 
     if dirUriMap is None:
-        dirUriMap = {'data/': URIRef('http://example.com/data/')}
+        dirUriMap = {b'data/': URIRef('http://example.com/data/')}
     if prefixes is None:
         prefixes = {
-            'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
-            'rdfs': 'http://www.w3.org/2000/01/rdf-schema#',
-            'xsd': 'http://www.w3.org/2001/XMLSchema#',
+            'rdf': URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#'),
+            'rdfs': URIRef('http://www.w3.org/2000/01/rdf-schema#'),
+            'xsd': URIRef('http://www.w3.org/2001/XMLSchema#'),
         }
     
     logging.basicConfig()

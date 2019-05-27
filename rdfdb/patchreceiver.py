@@ -1,4 +1,5 @@
-import logging, cyclone.httpclient, traceback, urllib.request, urllib.parse, urllib.error
+import logging, traceback, urllib.request, urllib.parse, urllib.error
+import cyclone.web, cyclone.httpclient
 from twisted.internet import reactor
 from rdfdb.patch import Patch
 log = logging.getLogger('syncedgraph')

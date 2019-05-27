@@ -1,6 +1,7 @@
 import logging, time
 from typing import List
 import cyclone.httpclient
+from rdflib import URIRef
 from twisted.internet import defer
 from rdfdb.patch import Patch
 
@@ -93,7 +94,7 @@ class PatchSender(object):
         log.error(e)
         self._continueSending()
 
-def sendPatch(putUri, patch, **kw) -> defer.Deferred:
+def sendPatch(putUri: URIRef, patch: Patch, **kw) -> defer.Deferred:
     """
     PUT a patch as json to an http server. Returns deferred.
     
@@ -102,7 +103,7 @@ def sendPatch(putUri, patch, **kw) -> defer.Deferred:
     t1 = time.time()
     body = patch.makeJsonRepr(kw)
     jsonTime = time.time() - t1
-    intro = body[:200].decode('utf8')
+    intro = body[:200]
     if len(body) > 200:
         intro = intro + "..."
     log.debug("send body (rendered %.1fkB in %.1fms): %s", len(body) / 1024, jsonTime * 1000, intro)
@@ -116,8 +117,8 @@ def sendPatch(putUri, patch, **kw) -> defer.Deferred:
         return done
 
     return cyclone.httpclient.fetch(
-        url=putUri,
+        url=putUri.toPython().encode('ascii'),
         method=b'PUT',
         headers={b'Content-Type': [b'application/json']},
-        postdata=body,
+        postdata=body.encode('utf8'),
         ).addCallback(putDone)
