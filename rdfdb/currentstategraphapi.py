@@ -3,14 +3,17 @@ from rdflib import ConjunctiveGraph, URIRef
 from rdfdb.rdflibpatch import contextsForStatement as rp_contextsForStatement
 log = logging.getLogger("currentstate")
 
+
 class ReadOnlyConjunctiveGraph(object):
     """similar to rdflib's ReadOnlyGraphAggregate but takes one CJ in, instead
     of a bunch of Graphs"""
+
     def __init__(self, graph):
         self.graph = graph
 
     def __getattr__(self, attr):
-        if attr in ['subjects', 'value', 'objects', 'triples', 'label']: # not complete
+        if attr in ['subjects', 'value', 'objects', 'triples',
+                    'label']:  # not complete
             return getattr(self.graph, attr)
         raise TypeError("can't access %r of read-only graph" % attr)
 
@@ -36,6 +39,7 @@ class CurrentStateGraphApi(object):
             raise NotImplementedError("currentState with context arg")
 
         class Mgr(object):
+
             def __enter__(self2):
                 # this should be a readonly view of the existing
                 # graph, maybe with something to guard against
@@ -48,14 +52,14 @@ class CurrentStateGraphApi(object):
                 else:
                     t1 = time.time()
                     g = ConjunctiveGraph()
-                    for s,p,o,c in self._graph.quads(tripleFilter):
-                        g.store.add((s,p,o), c)
+                    for s, p, o, c in self._graph.quads(tripleFilter):
+                        g.store.add((s, p, o), c)
 
                     if tripleFilter == (None, None, None):
                         self2.logThisCopy(g, time.time() - t1)
-                    
-                setattr(g, 'contextsForStatement',
-                        lambda t: contextsForStatementNoWildcards(g, t))
+
+                setattr(g, 'contextsForStatement', lambda t:
+                        contextsForStatementNoWildcards(g, t))
                 return g
 
             def logThisCopy(self, g, sec):
@@ -63,15 +67,15 @@ class CurrentStateGraphApi(object):
                          "because of this:" % (len(g), sec * 1000))
                 for frame in traceback.format_stack(limit=4)[:-2]:
                     for line in frame.splitlines():
-                        log.info("  "+line)
+                        log.info("  " + line)
 
             def __exit__(self, type, val, tb):
                 return
 
         return Mgr()
 
-    _reservedSequentials = None # Optional[Set[URIRef]]
-    
+    _reservedSequentials = None  # Optional[Set[URIRef]]
+
     def sequentialUri(self, prefix):
         """
         Prefix URIRef like http://example.com/r- will return
@@ -82,11 +86,12 @@ class CurrentStateGraphApi(object):
             self._reservedSequentials = set()
         for i in itertools.count(1):
             newUri = URIRef(prefix + str(i))
-            if newUri not in self._reservedSequentials and not list(self._graph.triples((newUri, None, None))):
+            if newUri not in self._reservedSequentials and not list(
+                    self._graph.triples((newUri, None, None))):
                 self._reservedSequentials.add(newUri)
                 return newUri
 
-        
+
 def contextsForStatementNoWildcards(g, triple):
     if None in triple:
         raise NotImplementedError("no wildcards")

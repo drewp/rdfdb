@@ -6,22 +6,23 @@ if sys.path[0] == '/usr/lib/python2.7/dist-packages':
 from rdflib.term import _PLAIN_LITERAL_TYPES, _XSD_DOUBLE, _XSD_DECIMAL, Literal
 from re import sub
 
+
 def _literal_n3(self, use_plain=False, qname_callback=None):
     if use_plain and self.datatype in _PLAIN_LITERAL_TYPES:
         try:
-            self.toPython() # check validity
-            # this is a bit of a mess - 
+            self.toPython()  # check validity
+            # this is a bit of a mess -
             # in py >=2.6 the string.format function makes this easier
             # we try to produce "pretty" output
             if self.datatype == _XSD_DOUBLE:
                 # this is the drewp fix
-                return sub(r"\.?0*e","e", '%e' % float(self))
+                return sub(r"\.?0*e", "e", '%e' % float(self))
             elif self.datatype == _XSD_DECIMAL:
-                return sub("0*$","0",'%f' % float(self))
+                return sub("0*$", "0", '%f' % float(self))
             else:
                 return '%s' % self
         except ValueError:
-            pass # if it's in, we let it out?
+            pass  # if it's in, we let it out?
 
     encoded = self._quote_encode()
 
@@ -44,11 +45,16 @@ def _literal_n3(self, use_plain=False, qname_callback=None):
     else:
         return '%s' % encoded
 
+
 def patch():
     Literal._literal_n3 = _literal_n3
 
+
 import unittest
+
+
 class TestDoubleOutput(unittest.TestCase):
+
     def testNoDanglingPoint(self):
         vv = Literal("0.88", datatype=_XSD_DOUBLE)
         out = _literal_n3(vv, use_plain=True)

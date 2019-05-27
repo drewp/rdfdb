@@ -4,6 +4,7 @@ from rdflib import RDF, RDFS, URIRef
 from rdfdb.currentstategraphapi import contextsForStatementNoWildcards
 log = logging.getLogger('autodepgraphapi')
 
+
 class AutoDepGraphApi(object):
     """
     knockoutjs-inspired API for automatically building a dependency
@@ -21,8 +22,9 @@ class AutoDepGraphApi(object):
 
     def __init__(self):
         self._watchers = _GraphWatchers()
-        self.currentFuncs: List[Callable[[], None]] = [] # stack of addHandler callers
-    
+        self.currentFuncs: List[Callable[[], None]] = [
+        ]  # stack of addHandler callers
+
     def addHandler(self, func: Callable[[], None]) -> None:
         """
         run this (idempotent) func, noting what graph values it
@@ -54,7 +56,8 @@ class AutoDepGraphApi(object):
                 raise
         finally:
             self.currentFuncs.pop()
-            log.debug('graph.currentFuncs pop %s. stack now has %s', func, len(self.currentFuncs))
+            log.debug('graph.currentFuncs pop %s. stack now has %s', func,
+                      len(self.currentFuncs))
 
     def runDepsOnNewPatch(self, p):
         """
@@ -86,14 +89,21 @@ class AutoDepGraphApi(object):
     # between calls, but probably most of them don't do that (they
     # work from a starting uri)
 
-    def value(self, subject=None, predicate=RDF.value, object=None,
-              default=None, any=True):
+    def value(self,
+              subject=None,
+              predicate=RDF.value,
+              object=None,
+              default=None,
+              any=True):
         if object is not None:
             raise NotImplementedError()
         func = self._getCurrentFunc()
         self._watchers.addSubjPredWatcher(func, subject, predicate)
-        return self._graph.value(subject, predicate, object=object,
-                                 default=default, any=any)
+        return self._graph.value(subject,
+                                 predicate,
+                                 object=object,
+                                 default=default,
+                                 any=any)
 
     def objects(self, subject=None, predicate=None):
         func = self._getCurrentFunc()
@@ -112,7 +122,7 @@ class AutoDepGraphApi(object):
         func = self._getCurrentFunc()
         self._watchers.addSubjectWatcher(func, subject)
         return self._graph.predicate_objects(subject)
-        
+
     def items(self, listUri):
         """generator. Having a chain of watchers on the results is not
         well-tested yet"""
@@ -126,7 +136,6 @@ class AutoDepGraphApi(object):
                 raise ValueError("List contains a recursive rdf:rest reference")
             chain.add(listUri)
 
-        
     def contains(self, triple):
         func = self._getCurrentFunc()
         self._watchers.addTripleWatcher(func, triple)
@@ -144,17 +153,23 @@ class AutoDepGraphApi(object):
     # I'm going to be repeating that logic a lot. Maybe just for the
     # subjects(RDF.type, t) call
 
+
 HandlerSet = Set[Callable[[], None]]
+
 
 class _GraphWatchers(object):
     """
     store the current handlers that care about graph changes
     """
+
     def __init__(self):
-        self._handlersSp: Dict[Tuple[URIRef, URIRef], HandlerSet] = {} # (s,p): set(handlers)
-        self._handlersPo: Dict[Tuple[URIRef, URIRef], HandlerSet] = {} # (p,o): set(handlers)
-        self._handlersSpo: Dict[Tuple[URIRef, URIRef, URIRef], HandlerSet] = {} # (s,p,o): set(handlers)
-        self._handlersS: Dict[URIRef, HandlerSet] = {} # s: set(handlers)
+        self._handlersSp: Dict[Tuple[URIRef, URIRef], HandlerSet] = {
+        }  # (s,p): set(handlers)
+        self._handlersPo: Dict[Tuple[URIRef, URIRef], HandlerSet] = {
+        }  # (p,o): set(handlers)
+        self._handlersSpo: Dict[Tuple[URIRef, URIRef, URIRef], HandlerSet] = {
+        }  # (s,p,o): set(handlers)
+        self._handlersS: Dict[URIRef, HandlerSet] = {}  # s: set(handlers)
 
     def addSubjPredWatcher(self, func, s, p):
         if func is None:
@@ -174,7 +189,7 @@ class _GraphWatchers(object):
 
     def addSubjectWatcher(self, func, s):
         self._handlersS.setdefault(s, set()).add(func)
-        
+
     def whoCares(self, patch):
         """what handler functions would care about the changes in this patch?
 
@@ -182,34 +197,34 @@ class _GraphWatchers(object):
         """
         #self.dependencies()
         ret: Set[Callable[[], None]] = set()
-        affectedSubjPreds = set([(s, p) for s, p, o, c in patch.addQuads]+
+        affectedSubjPreds = set([(s, p) for s, p, o, c in patch.addQuads] +
                                 [(s, p) for s, p, o, c in patch.delQuads])
         for (s, p), funcs in self._handlersSp.items():
             if (s, p) in affectedSubjPreds:
                 ret.update(funcs)
                 funcs.clear()
 
-        affectedPredObjs = set([(p, o) for s, p, o, c in patch.addQuads]+
-                                [(p, o) for s, p, o, c in patch.delQuads])
+        affectedPredObjs = set([(p, o) for s, p, o, c in patch.addQuads] +
+                               [(p, o) for s, p, o, c in patch.delQuads])
         for (p, o), funcs in self._handlersPo.items():
             if (p, o) in affectedPredObjs:
                 ret.update(funcs)
                 funcs.clear()
 
-        affectedTriples = set([(s, p, o) for s, p, o, c in patch.addQuads]+
+        affectedTriples = set([(s, p, o) for s, p, o, c in patch.addQuads] +
                               [(s, p, o) for s, p, o, c in patch.delQuads])
         for triple, funcs in self._handlersSpo.items():
             if triple in affectedTriples:
                 ret.update(funcs)
                 funcs.clear()
-                
-        affectedSubjs = set([s for s, p, o, c in patch.addQuads]+
+
+        affectedSubjs = set([s for s, p, o, c in patch.addQuads] +
                             [s for s, p, o, c in patch.delQuads])
         for subj, funcs in self._handlersS.items():
             if subj in affectedSubjs:
                 ret.update(funcs)
                 funcs.clear()
-                
+
         return ret
 
     def dependencies(self):

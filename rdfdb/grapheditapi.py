@@ -5,6 +5,7 @@ from rdflib.term import Node
 from rdfdb.patch import Patch, quadsWithContextUris
 log = logging.getLogger('graphedit')
 
+
 class GraphEditApi(object):
     """
     fancier graph edits
@@ -20,30 +21,35 @@ class GraphEditApi(object):
         """
 
         existing = []
-        for spoc in quadsWithContextUris(self._graph.quads((subject, predicate, None, context))):
+        for spoc in quadsWithContextUris(
+                self._graph.quads((subject, predicate, None, context))):
             existing.append(spoc)
-        toAdd = ([(subject, predicate, newObject, context)]
-                      if newObject is not None else [])
+        toAdd = ([(subject, predicate, newObject,
+                   context)] if newObject is not None else [])
         return Patch(delQuads=existing, addQuads=toAdd).simplify()
 
-    def patchObject(self, context: URIRef, subject: Node, predicate: URIRef, newObject: Node):
+    def patchObject(self, context: URIRef, subject: Node, predicate: URIRef,
+                    newObject: Node):
         p = self.getObjectPatch(context, subject, predicate, newObject)
         if not p.isNoop():
             log.debug("patchObject %r" % p.jsonRepr)
-        self.patch(p) # type: ignore
+        self.patch(p)  # type: ignore
 
     def patchSubgraph(self, context, newGraph):
         """
         replace all statements in 'context' with the quads in newGraph.
         This is not cooperating with currentState.
         """
-        old = set(quadsWithContextUris(self._graph.quads((None, None, None, context))))
+        old = set(
+            quadsWithContextUris(self._graph.quads(
+                (None, None, None, context))))
         new = set(quadsWithContextUris(newGraph))
         p = Patch(delQuads=old - new, addQuads=new - old)
         self.patch(p)
-        return p # for debugging
-        
-    def patchMapping(self, context, subject, predicate, nodeClass, keyPred, valuePred, newKey, newValue):
+        return p  # for debugging
+
+    def patchMapping(self, context, subject, predicate, nodeClass, keyPred,
+                     valuePred, newKey, newValue):
         """
         creates/updates a structure like this:
 
@@ -59,25 +65,28 @@ class GraphEditApi(object):
         # as long as currentState is expensive and has the
         # tripleFilter optimization, this looks like a mess. If
         # currentState became cheap, a lot of code here could go away.
-        
-        with self.currentState(tripleFilter=(subject, predicate, None)) as current:
+
+        with self.currentState(tripleFilter=(subject, predicate,
+                                             None)) as current:
             adds = set([])
             for setting in current.objects(subject, predicate):
-                with self.currentState(tripleFilter=(setting, keyPred, None)) as current2:
-                
+                with self.currentState(tripleFilter=(setting, keyPred,
+                                                     None)) as current2:
+
                     match = current2.value(setting, keyPred) == newKey
                 if match:
                     break
             else:
-                setting = URIRef(subject + "/map/%s" %
-                                 random.randrange(999999999))
+                setting = URIRef(subject +
+                                 "/map/%s" % random.randrange(999999999))
                 adds.update([
                     (subject, predicate, setting, context),
                     (setting, RDF.type, nodeClass, context),
                     (setting, keyPred, newKey, context),
-                    ])
+                ])
 
-        with self.currentState(tripleFilter=(setting, valuePred, None)) as current:
+        with self.currentState(tripleFilter=(setting, valuePred,
+                                             None)) as current:
             dels = set([])
             for prev in current.objects(setting, valuePred):
                 dels.add((setting, valuePred, prev, context))
@@ -92,22 +101,30 @@ class GraphEditApi(object):
         is the right amount of statements to remove a node that
         patchMapping made.
         """
-        p = Patch(delQuads=[spo+(context,) for spo in
-                            chain(self._graph.triples((None, None, node),
-                                                      context=context),
-                                  self._graph.triples((node, None, None),
-                                                      context=context))])
+        p = Patch(delQuads=[
+            spo + (context,) for spo in chain(
+                self._graph.triples((None, None, node), context=context),
+                self._graph.triples((node, None, None), context=context))
+        ])
         self.patch(p)
+
 
 import unittest
 from rdflib import ConjunctiveGraph
+
+
 class TestPatchSubgraph(unittest.TestCase):
+
     def testCollapsesIdenticalQuads(self):
         appliedPatches = []
+
         class Obj(GraphEditApi):
+
             def patch(self, p):
                 appliedPatches.append(p)
+
             _graph: ConjunctiveGraph
+
         obj = Obj()
         obj._graph = ConjunctiveGraph()
         stmt1 = (URIRef('s'), URIRef('p'), URIRef('o'), URIRef('g'))

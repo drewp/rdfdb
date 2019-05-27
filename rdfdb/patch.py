@@ -3,10 +3,10 @@ from rdflib import ConjunctiveGraph, Graph, URIRef, URIRef as U, Literal, Namesp
 from typing import Optional
 XSD = Namespace("http://www.w3.org/2001/XMLSchema#")
 
-
 from rdfdb.rdflibpatch import graphFromNQuad, graphFromQuads, serializeQuad
 
 ALLSTMTS = (None, None, None)
+
 
 def quadsWithContextUris(quads):
     """
@@ -15,12 +15,13 @@ def quadsWithContextUris(quads):
     """
     if isinstance(quads, ConjunctiveGraph):
         quads = quads.quads(ALLSTMTS)
-    for s,p,o,c in quads:
+    for s, p, o, c in quads:
         if isinstance(c, Graph):
             c = c.identifier
         if not isinstance(c, URIRef):
-            raise TypeError("bad quad context type in %r" % ((s,p,o,c),))
-        yield s,p,o,c
+            raise TypeError("bad quad context type in %r" % ((s, p, o, c),))
+        yield s, p, o, c
+
 
 class Patch(object):
     """
@@ -28,9 +29,13 @@ class Patch(object):
     
     the json representation includes the {"patch":...} wrapper
     """
-    def __init__(self, jsonRepr: Optional[str]=None,
-                 addQuads=None, delQuads=None,
-                 addGraph=None, delGraph=None):
+
+    def __init__(self,
+                 jsonRepr: Optional[str] = None,
+                 addQuads=None,
+                 delQuads=None,
+                 addGraph=None,
+                 delGraph=None):
         """
         addQuads/delQuads can be lists or sets, but if we make them internally,
         they'll be lists
@@ -49,20 +54,23 @@ class Patch(object):
                 self.senderUpdateUri = body['senderUpdateUri']
 
     def __str__(self):
+
         def shorten(n):
             if isinstance(n, Literal):
                 if n.datatype == XSD['double']:
                     return str(n.toPython())
             return n.n3()
+
         def formatQuad(quad):
             return " ".join(shorten(n) for n in quad)
+
         delLines = ["  -%s" % formatQuad(q) for q in self.delQuads]
         addLines = ["  +%s" % formatQuad(q) for q in self.addQuads]
         return "\nPatch:\n" + "\n".join(delLines) + "\n" + "\n".join(addLines)
 
     def shortSummary(self):
         return "[-%s +%s]" % (len(self.delQuads), len(self.addQuads))
-        
+
     @classmethod
     def fromDiff(cls, oldGraph, newGraph):
         """
@@ -78,16 +86,16 @@ class Patch(object):
         """
         if self._jsonRepr and self._jsonRepr.strip():
             raise NotImplementedError()
-        return bool(self._addQuads or self._delQuads or
-                    self._addGraph or self._delGraph)
+        return bool(self._addQuads or self._delQuads or self._addGraph or
+                    self._delGraph)
 
     @property
     def addQuads(self):
         if self._addQuads is None:
             if self._addGraph is None:
                 return []
-            self._addQuads = list(quadsWithContextUris(
-                self._addGraph.quads(ALLSTMTS)))
+            self._addQuads = list(
+                quadsWithContextUris(self._addGraph.quads(ALLSTMTS)))
         return self._addQuads
 
     @property
@@ -95,8 +103,8 @@ class Patch(object):
         if self._delQuads is None:
             if self._delGraph is None:
                 return []
-            self._delQuads = list(quadsWithContextUris(
-                self._delGraph.quads(ALLSTMTS)))
+            self._delQuads = list(
+                quadsWithContextUris(self._delGraph.quads(ALLSTMTS)))
         return self._delQuads
 
     @property
@@ -118,10 +126,12 @@ class Patch(object):
         return self._jsonRepr
 
     def makeJsonRepr(self, extraAttrs={}) -> str:
-        d = {"patch" : {
-            'adds' : serializeQuad(self.addGraph),
-            'deletes' : serializeQuad(self.delGraph),
-            }}
+        d = {
+            "patch": {
+                'adds': serializeQuad(self.addGraph),
+                'deletes': serializeQuad(self.delGraph),
+            }
+        }
         if len(self.addGraph) > 0 and d['patch']['adds'].strip() == "":
             # this is the bug that graphFromNQuad works around
             raise ValueError("nquads serialization failure")
@@ -137,7 +147,7 @@ class Patch(object):
         if not both:
             return self
         return Patch(addQuads=adds - both, delQuads=dels - both)
-        
+
     def concat(self, more):
         """
         new Patch with the result of applying this patch and the
@@ -167,7 +177,9 @@ class Patch(object):
                 ctx = q[3]
 
             if ctx != q[3]:
-                raise ValueError("patch applies to multiple contexts, at least %r and %r" % (ctx, q[3]))
+                raise ValueError(
+                    "patch applies to multiple contexts, at least %r and %r" %
+                    (ctx, q[3]))
         if ctx is None:
             raise ValueError("patch affects no contexts")
         assert isinstance(ctx, URIRef), ctx
@@ -175,11 +187,13 @@ class Patch(object):
 
     def isNoop(self):
         return set(self.addQuads) == set(self.delQuads)
-            
+
 
 stmt1 = U('http://a'), U('http://b'), U('http://c'), U('http://ctx1')
 
+
 class TestPatchFromDiff(unittest.TestCase):
+
     def testEmpty(self):
         g = ConjunctiveGraph()
         p = Patch.fromDiff(g, g)
@@ -210,8 +224,10 @@ class TestPatchFromDiff(unittest.TestCase):
         self.assertEqual(p.delQuads, [stmt1])
         p = Patch.fromDiff(ConjunctiveGraph(), [stmt1])
         self.assertEqual(p.addQuads, [stmt1])
-        
+
+
 class TestPatchGetContext(unittest.TestCase):
+
     def testEmptyPatchCantGiveContext(self):
         p = Patch()
         self.assertRaises(ValueError, p.getContext)
@@ -221,7 +237,7 @@ class TestPatchGetContext(unittest.TestCase):
         self.assertEqual(p.getContext(), U('http://ctx1'))
 
     def testMultiContextPatchFailsToReturnContext(self):
-        p = Patch(addQuads=[stmt1[:3] + (U('http://ctx1'),),
-                            stmt1[:3] + (U('http://ctx2'),)])
+        p = Patch(addQuads=[
+            stmt1[:3] + (U('http://ctx1'),), stmt1[:3] + (U('http://ctx2'),)
+        ])
         self.assertRaises(ValueError, p.getContext)
-                  

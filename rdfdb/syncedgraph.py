@@ -55,7 +55,11 @@ class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
     pending local changes) and get the data again from the
     server.
     """
-    def __init__(self, rdfdbRoot: URIRef, label: str, receiverHost: Optional[str]=None):
+
+    def __init__(self,
+                 rdfdbRoot: URIRef,
+                 label: str,
+                 receiverHost: Optional[str] = None):
         """
         label is a string that the server will display in association
         with your connection
@@ -64,19 +68,20 @@ class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
         """
         if receiverHost is None:
             receiverHost = socket.gethostname()
-        
+
         self.rdfdbRoot = rdfdbRoot
         self.initiallySynced: defer.Deferred[None] = defer.Deferred()
         self._graph = ConjunctiveGraph()
 
-        self._receiver = PatchReceiver(self.rdfdbRoot, receiverHost, label, self._onPatch)
-        
+        self._receiver = PatchReceiver(self.rdfdbRoot, receiverHost, label,
+                                       self._onPatch)
+
         self._sender = PatchSender(self.rdfdbRoot + 'patches',
                                    self._receiver.updateResource)
         AutoDepGraphApi.__init__(self)
         # this needs more state to track if we're doing a resync (and
         # everything has to error or wait) or if we're live
-        
+
     def resync(self):
         """
         get the whole graph again from the server (e.g. we had a
@@ -97,12 +102,14 @@ class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
         return cyclone.httpclient.fetch(
             url=self.rdfdbRoot + "graph",
             method=b"GET",
-            headers={b'Accept':[b'x-trig']},
-            ).addCallback(self._resyncGraph)
+            headers={
+                b'Accept': [b'x-trig']
+            },
+        ).addCallback(self._resyncGraph)
 
     def _resyncGraph(self, response):
         log.warn("new graph in")
-        
+
         #diff against old entire graph
         #broadcast that change
 
@@ -113,7 +120,7 @@ class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
         if p.isNoop():
             log.info("skipping no-op patch")
             return
-        
+
         # these could fail if we're out of sync. One approach:
         # Rerequest the full state from the server, try the patch
         # again after that, then give up.
@@ -141,7 +148,10 @@ class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
         particular file flush
         """
         treq.post(self.rdfdbRoot + 'prefixes',
-                  json.dumps({'ctx': ctx, 'prefixes': prefixes}).encode('utf8'))
+                  json.dumps({
+                      'ctx': ctx,
+                      'prefixes': prefixes
+                  }).encode('utf8'))
 
     def sendFailed(self, result):
         """
@@ -150,7 +160,7 @@ class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
         """
         log.warn("sendFailed")
         self.resync()
-        
+
         #i think we should receive back all the pending patches,
         #do a resync here,
         #then requeue all the pending patches (minus the failing one?) after that's done.

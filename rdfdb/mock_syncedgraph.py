@@ -1,25 +1,33 @@
-
 from rdflib import Graph, RDF, RDFS
 from rdflib.parser import StringInputSource
+
 
 class MockSyncedGraph(object):
     """
     Lets users of SyncedGraph mostly work. Doesn't yet help with any
     testing of the rerun-upon-graph-change behavior.
     """
+
     def __init__(self, n3Content):
         self._graph = Graph()
         self._graph.parse(StringInputSource(n3Content), format='n3')
 
     def addHandler(self, func):
         func()
-        
-    def value(self, subject=None, predicate=RDF.value, object=None,
-              default=None, any=True):
+
+    def value(self,
+              subject=None,
+              predicate=RDF.value,
+              object=None,
+              default=None,
+              any=True):
         if object is not None:
             raise NotImplementedError()
-        return self._graph.value(subject, predicate, object=object,
-                                 default=default, any=any)
+        return self._graph.value(subject,
+                                 predicate,
+                                 object=object,
+                                 default=default,
+                                 any=any)
 
     def objects(self, subject=None, predicate=None):
         return self._graph.objects(subject, predicate)
@@ -32,7 +40,7 @@ class MockSyncedGraph(object):
 
     def predicate_objects(self, subject):
         return self._graph.predicate_objects(subject)
-        
+
     def items(self, listUri):
         """generator. Having a chain of watchers on the results is not
         well-tested yet"""

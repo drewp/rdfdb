@@ -7,7 +7,8 @@ from rdfdb.patch import Patch
 
 log = logging.getLogger('syncedgraph')
 
-SendResult = defer.Deferred# to None
+SendResult = defer.Deferred  # to None
+
 
 class PatchSender(object):
     """
@@ -15,6 +16,7 @@ class PatchSender(object):
     them. This object buffers and may even collapse patches before
     they go the server
     """
+
     def __init__(self, target: URIRef, myUpdateResource):
         """
         target is the URI we'll send patches to
@@ -33,7 +35,7 @@ class PatchSender(object):
         self._patchesToSend.append((p, sendResult))
         self._continueSending()
         return sendResult
-        
+
     def cancelAll(self):
         self._patchesToSend[:] = []
         # we might be in the middle of a post; ideally that would be
@@ -55,9 +57,11 @@ class PatchSender(object):
                 p = self._patchesToSend[0].concat(self._patchesToSend[1:])
                 print("concat down to")
                 print('dels')
-                for q in p.delQuads: print(q)
+                for q in p.delQuads:
+                    print(q)
                 print('adds')
-                for q in p.addQuads: print(q)
+                for q in p.addQuads:
+                    print(q)
                 print("----")
             else:
                 p, sendResult = self._patchesToSend.pop(0)
@@ -96,6 +100,7 @@ class PatchSender(object):
         log.error(e)
         self._continueSending()
 
+
 def sendPatch(putUri: URIRef, patch: Patch, **kw) -> defer.Deferred:
     """
     PUT a patch as json to an http server. Returns deferred.
@@ -108,8 +113,10 @@ def sendPatch(putUri: URIRef, patch: Patch, **kw) -> defer.Deferred:
     intro = body[:200]
     if len(body) > 200:
         intro = intro + "..."
-    log.debug("send body (rendered %.1fkB in %.1fms): %s", len(body) / 1024, jsonTime * 1000, intro)
+    log.debug("send body (rendered %.1fkB in %.1fms): %s",
+              len(body) / 1024, jsonTime * 1000, intro)
     sendTime = time.time()
+
     def putDone(done):
         if not str(done.code).startswith('2'):
             raise ValueError("sendPatch request failed %s: %s" %
@@ -121,6 +128,8 @@ def sendPatch(putUri: URIRef, patch: Patch, **kw) -> defer.Deferred:
     return cyclone.httpclient.fetch(
         url=putUri.toPython().encode('ascii'),
         method=b'PUT',
-        headers={b'Content-Type': [b'application/json']},
+        headers={
+            b'Content-Type': [b'application/json']
+        },
         postdata=body.encode('utf8'),
-        ).addCallback(putDone)
+    ).addCallback(putDone)

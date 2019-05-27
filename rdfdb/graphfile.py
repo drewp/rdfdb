@@ -12,10 +12,12 @@ from typing_extensions import Protocol
 log = logging.getLogger('graphfile')
 iolog = logging.getLogger('io')
 
+
 def patchN3SerializerToUseLessWhitespace(cutColumn=65):
     # todo: make a n3serializer subclass with whitespace settings
     from rdflib.plugins.serializers.turtle import TurtleSerializer, OBJECT
     originalWrite = TurtleSerializer.write
+
     def write(self, s):
         lines = s.split('\n')
         if len(lines) > 1:
@@ -23,7 +25,9 @@ def patchN3SerializerToUseLessWhitespace(cutColumn=65):
         else:
             self._column += len(lines[0])
         return originalWrite(self, s)
-    TurtleSerializer.write = write # type: ignore
+
+    TurtleSerializer.write = write  # type: ignore
+
     def predicateList(self, subject, newline=False):
         properties = self.buildPredicateHash(subject)
         propList = self.sortProperties(properties)
@@ -38,6 +42,7 @@ def patchN3SerializerToUseLessWhitespace(cutColumn=65):
                 self.write('\n' + self.indent(1))
             self.verb(predicate, newline=False)
             self.objectList(properties[predicate])
+
     def objectList(self, objects):
         count = len(objects)
         if count == 0:
@@ -51,34 +56,40 @@ def patchN3SerializerToUseLessWhitespace(cutColumn=65):
         self.depth -= depthmod
 
     originalStatement = TurtleSerializer.statement
+
     def statement(self, subject):
         if list(self.store.triples((subject, RDF.type, None))):
             self.write('\n')
         originalStatement(self, subject)
-        return False         #  suppress blank line for 'minor' statements
+        return False  #  suppress blank line for 'minor' statements
+
     TurtleSerializer.statement = statement  # type: ignore
     TurtleSerializer.predicateList = predicateList  # type: ignore
     TurtleSerializer.objectList = objectList  # type: ignore
+
 
 patchN3SerializerToUseLessWhitespace()
 
 
 class PatchCb(Protocol):
-    def __call__(self, patch: Patch, dueToFileChange: bool=False) -> None: ...
+
+    def __call__(self, patch: Patch, dueToFileChange: bool = False) -> None:
+        ...
+
 
 class GetSubgraph(Protocol):
-    def __call__(self, uri: URIRef) -> Graph: ...
-    
+
+    def __call__(self, uri: URIRef) -> Graph:
+        ...
+
+
 class GraphFile(object):
     """
     one rdf file that we read from, write to, and notice external changes to
     """
-    def __init__(self,
-                 notifier: INotify,
-                 path: bytes,
-                 uri: URIRef,
-                 patch: PatchCb,
-                 getSubgraph: GetSubgraph,
+
+    def __init__(self, notifier: INotify, path: bytes, uri: URIRef,
+                 patch: PatchCb, getSubgraph: GetSubgraph,
                  globalPrefixes: Dict[str, URIRef],
                  ctxPrefixes: Dict[str, URIRef]):
         """
@@ -93,12 +104,12 @@ class GraphFile(object):
         self.path, self.uri = path, uri
         self.patch, self.getSubgraph = patch, getSubgraph
 
-        self.lastWriteTimestamp = 0.0 # mtime from the last time _we_ wrote
+        self.lastWriteTimestamp = 0.0  # mtime from the last time _we_ wrote
 
         self.globalPrefixes = globalPrefixes
         self.ctxPrefixes = ctxPrefixes
         self.readPrefixes: Dict[str, URIRef] = {}
-        
+
         if not os.path.exists(path):
             # can't start notify until file exists
             try:
@@ -113,17 +124,16 @@ class GraphFile(object):
             # didn't work:
             self.lastWriteTimestamp = os.path.getmtime(path)
 
-
-        self.flushDelay = 2 # seconds until we have to call flush() when dirty
+        self.flushDelay = 2  # seconds until we have to call flush() when dirty
         self.writeCall: Optional[IDelayedCall] = None
 
         self.notifier = notifier
         self.addWatch()
-        
+
     def addWatch(self) -> None:
 
         # emacs save comes in as IN_MOVE_SELF, maybe
-        
+
         # I was hoping not to watch IN_CHANGED and get lots of
         # half-written files, but emacs doesn't close its files after
         # a write, so there's no other event. I could try to sleep
@@ -135,7 +145,7 @@ class GraphFile(object):
 
         log.info("add watch on %s", self.path)
         self.notifier.watch(FilePath(self.path), callbacks=[self.notify])
-        
+
     def notify(self, notifier: INotify, filepath: FilePath, mask: int) -> None:
         try:
             maskNames = humanReadableMask(mask)
@@ -145,9 +155,9 @@ class GraphFile(object):
                     self.fileGone()
                     return
                 else:
-                    log.warn("%s delete_self event but file is here. "
-                             "probably a new version moved in",
-                             filepath)
+                    log.warn(
+                        "%s delete_self event but file is here. "
+                        "probably a new version moved in", filepath)
 
             # we could filter these out in the watch() call, but I want
             # the debugging
@@ -162,7 +172,7 @@ class GraphFile(object):
             except OSError as e:
                 log.error("%s: %r" % (filepath, e))
                 # getting OSError no such file, followed by no future reads
-                reactor.callLater(.5, self.addWatch) # ?
+                reactor.callLater(.5, self.addWatch)  # ?
 
                 return
 
@@ -176,11 +186,12 @@ class GraphFile(object):
         """
         our file is gone; remove the statements from that context
         """
-        myQuads = [(s,p,o,self.uri) for s,p,o in self.getSubgraph(self.uri)]
+        myQuads = [(s, p, o, self.uri) for s, p, o in self.getSubgraph(self.uri)
+                  ]
         log.debug("dropping all statements from context %s", self.uri)
         if myQuads:
             self.patch(Patch(delQuads=myQuads), dueToFileChange=True)
-            
+
     def reread(self) -> None:
         """update the graph with any diffs from this file
 
@@ -191,7 +202,8 @@ class GraphFile(object):
         try:
             contents = open(self.path).read()
             if contents.startswith("#new"):
-                log.debug("%s ignoring empty contents of my new file", self.path)
+                log.debug("%s ignoring empty contents of my new file",
+                          self.path)
                 # this is a new file we're starting, and we should not
                 # patch our graph as if it had just been cleared. We
                 # shouldn't even be here reading this, but
@@ -244,7 +256,8 @@ class GraphFile(object):
             self.writeCall.reset(self.flushDelay)
         else:
             # This awkward assignment is just to hide from mypy.
-            setattr(self, 'writeCall', reactor.callLater(self.flushDelay, self.flush))
+            setattr(self, 'writeCall',
+                    reactor.callLater(self.flushDelay, self.flush))
 
     def flush(self) -> None:
         self.writeCall = None
@@ -261,10 +274,8 @@ class GraphFile(object):
         f.close()
         self.lastWriteTimestamp = os.path.getmtime(tmpOut)
         os.rename(tmpOut, self.path)
-        iolog.info("%s rewrote in %.1f ms",
-                   self.path, serializeTime * 1000)
-        
+        iolog.info("%s rewrote in %.1f ms", self.path, serializeTime * 1000)
+
     def __repr__(self) -> str:
-        return "%s(path=%r, uri=%r, ...)" % (
-            self.__class__.__name__, self.path, self.uri)
-        
+        return "%s(path=%r, uri=%r, ...)" % (self.__class__.__name__, self.path,
+                                             self.uri)

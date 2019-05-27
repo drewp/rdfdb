@@ -20,14 +20,16 @@ from twisted.internet.inotify import INotify
 log = logging.getLogger('rdfdb')
 log.setLevel(logging.DEBUG)
 
+
 class WebsocketDisconnect(ValueError):
     pass
-    
+
 
 class Client(object):
     """
     one of our syncedgraph clients
     """
+
     def __init__(self, updateUri: URIRef, label: str):
         self.label = label
         # todo: updateUri is used publicly to compare clients. Replace
@@ -44,8 +46,10 @@ class Client(object):
         broken.
         """
         return sendPatch(self.updateUri, p)
-        
+
+
 class WsClient(object):
+
     def __init__(self, connectionId: str, sendMessage):
         self.updateUri = URIRef(connectionId)
         self.sendMessage = sendMessage
@@ -57,29 +61,31 @@ class WsClient(object):
         self.sendMessage(p.makeJsonRepr())
         return defer.succeed(None)
 
+
 def sendGraphToClient(graph, client: Union[Client, WsClient]) -> None:
     """send the client the whole graph contents"""
     log.info("sending all graphs to %r" % client)
-    client.sendPatch(Patch(
-        addQuads=graph.quads(ALLSTMTS),
-        delQuads=[]))
-    
+    client.sendPatch(Patch(addQuads=graph.quads(ALLSTMTS), delQuads=[]))
+
+
 class WatchedFiles(object):
     """
     find files, notice new files.
 
     This object watches directories. Each GraphFile watches its own file.
     """
-    def __init__(self, dirUriMap: DirUriMap, patch: PatchCb, getSubgraph: GetSubgraph, addlPrefixes: Dict[str, URIRef]):
-        self.dirUriMap = dirUriMap # {abspath : uri prefix}
+
+    def __init__(self, dirUriMap: DirUriMap, patch: PatchCb,
+                 getSubgraph: GetSubgraph, addlPrefixes: Dict[str, URIRef]):
+        self.dirUriMap = dirUriMap  # {abspath : uri prefix}
         self.patch, self.getSubgraph = patch, getSubgraph
         self.addlPrefixes = addlPrefixes
-        
-        self.graphFiles: Dict[URIRef, GraphFile] = {} # context uri : GraphFile
-        
+
+        self.graphFiles: Dict[URIRef, GraphFile] = {}  # context uri : GraphFile
+
         self.notifier = INotify()
         self.notifier.startReading()
-        
+
         self.findAndLoadFiles()
 
     def findAndLoadFiles(self) -> None:
@@ -92,7 +98,8 @@ class WatchedFiles(object):
                         # why wasn't mypy catching this?
                         assert isinstance(p, bytes)
                         self.watchFile(p)
-                    self.notifier.watch(FilePath(dirpath), autoAdd=True,
+                    self.notifier.watch(FilePath(dirpath),
+                                        autoAdd=True,
                                         callbacks=[self.dirChange])
         finally:
             self.initialLoad = False
@@ -101,10 +108,10 @@ class WatchedFiles(object):
         if mask & IN_CREATE:
             if path.path.endswith((b'~', b'.swp', b'swx', b'.rdfdb-temp')):
                 return
-                
+
             log.debug("%s created; consider adding a watch", path)
             self.watchFile(path.path)
-            
+
     def watchFile(self, inFile: bytes):
         """
         consider adding a GraphFile to self.graphFiles
@@ -123,7 +130,7 @@ class WatchedFiles(object):
         if b'/capture/' in inFile:
             # smaller graph for now
             return
-            
+
         # an n3 file with rules makes it all the way past this reading
         # and the serialization. Then, on the receiving side, a
         # SyncedGraph calls graphFromNQuad on the incoming data and
@@ -137,7 +144,7 @@ class WatchedFiles(object):
         # it.
         if inFile.endswith(b"config.n3"):
             return
-            
+
         ctx = uriFromFile(self.dirUriMap, inFile)
         gf = self._addGraphFile(ctx, inFile)
         log.info("%s do initial read", inFile)
@@ -166,14 +173,16 @@ class WatchedFiles(object):
     def _addGraphFile(self, ctx, path):
         self.addlPrefixes.setdefault(ctx, {})
         self.addlPrefixes.setdefault(None, {})
-        gf = GraphFile(self.notifier, path, ctx,
-                       self.patch, self.getSubgraph,
+        gf = GraphFile(self.notifier,
+                       path,
+                       ctx,
+                       self.patch,
+                       self.getSubgraph,
                        globalPrefixes=self.addlPrefixes[None],
                        ctxPrefixes=self.addlPrefixes[ctx])
-        self.graphFiles[ctx] = gf 
+        self.graphFiles[ctx] = gf
         return gf
 
-            
     def dirtyFiles(self, ctxs):
         """mark dirty the files that we watch in these contexts.
 
@@ -187,22 +196,22 @@ class WatchedFiles(object):
             g = self.getSubgraph(ctx)
             self.graphFiles[ctx].dirty(g)
 
-        
+
 class Db(object):
     """
     the master graph, all the connected clients, all the files we're watching
     """
+
     def __init__(self, dirUriMap: DirUriMap, addlPrefixes):
         self.clients: List[Union[Client, WsClient]] = []
         self.graph = ConjunctiveGraph()
 
-        self.watchedFiles = WatchedFiles(dirUriMap,
-                                         self.patch, self.getSubgraph,
-                                         addlPrefixes)
-        
+        self.watchedFiles = WatchedFiles(dirUriMap, self.patch,
+                                         self.getSubgraph, addlPrefixes)
+
         self.summarizeToLog()
 
-    def patch(self, patch: Patch, dueToFileChange: bool=False) -> None:
+    def patch(self, patch: Patch, dueToFileChange: bool = False) -> None:
         """
         apply this patch to the master graph then notify everyone about it
 
@@ -213,12 +222,12 @@ class Db(object):
         back to the sender with that updateUri
         """
         ctx = patch.getContext()
-        log.info("patching graph %s -%d +%d" % (
-            ctx, len(patch.delQuads), len(patch.addQuads)))
+        log.info("patching graph %s -%d +%d" %
+                 (ctx, len(patch.delQuads), len(patch.addQuads)))
 
-        if hasattr(self, 'watchedFiles'): # not available during startup
+        if hasattr(self, 'watchedFiles'):  # not available during startup
             self.watchedFiles.aboutToPatch(ctx)
-        
+
         patchQuads(self.graph, patch.delQuads, patch.addQuads, perfect=True)
         self._sendPatch(patch)
         if not dueToFileChange:
@@ -234,7 +243,7 @@ class Db(object):
                 continue
             d = c.sendPatch(p)
             d.addErrback(self.clientErrored, c)
-        
+
     def clientErrored(self, err, c):
         err.trap(twisted.internet.error.ConnectError, WebsocketDisconnect)
         log.info("%r %r - dropping client", c, err.getErrorMessage())
@@ -275,11 +284,16 @@ class Db(object):
         self.sendClientsToAllLivePages()
 
     def sendClientsToAllLivePages(self) -> None:
-        sendToLiveClients({"clients": [
-            dict(updateUri=c.updateUri.toPython(), label=repr(c))
-            for c in self.clients]})
+        sendToLiveClients({
+            "clients": [
+                dict(updateUri=c.updateUri.toPython(), label=repr(c))
+                for c in self.clients
+            ]
+        })
+
 
 class GraphResource(cyclone.web.RequestHandler):
+
     def get(self):
         accept = self.request.headers.get('accept', '')
         format = 'n3'
@@ -297,7 +311,9 @@ class GraphResource(cyclone.web.RequestHandler):
             return
         self.write(self.settings.db.graph.serialize(format=format))
 
+
 class Patches(cyclone.web.RequestHandler):
+
     def __init__(self, *args, **kw):
         cyclone.web.RequestHandler.__init__(self, *args, **kw)
         p = makePatchEndpointPutMethod(self.settings.db.patch)
@@ -306,7 +322,9 @@ class Patches(cyclone.web.RequestHandler):
     def get(self):
         pass
 
+
 class GraphClients(cyclone.web.RequestHandler):
+
     def get(self):
         pass
 
@@ -318,17 +336,24 @@ class GraphClients(cyclone.web.RequestHandler):
             import traceback
             traceback.print_exc()
             raise
-            
+
+
 class Prefixes(cyclone.web.RequestHandler):
+
     def post(self):
         suggestion = json.loads(self.request.body)
         addlPrefixes = self.settings.db.watchedFiles.addlPrefixes
-        addlPrefixes.setdefault(URIRef(suggestion['ctx']), {}).update(suggestion['prefixes'])
-    
+        addlPrefixes.setdefault(URIRef(suggestion['ctx']),
+                                {}).update(suggestion['prefixes'])
+
+
 _wsClientSerial = 0
+
+
 class WebsocketClient(cyclone.websocket.WebSocketHandler):
 
     wsClient: Optional[WsClient] = None
+
     def connectionMade(self, *args, **kwargs) -> None:
         global _wsClientSerial
         connectionId = f'connection-{_wsClientSerial}'
@@ -340,8 +365,8 @@ class WebsocketClient(cyclone.websocket.WebSocketHandler):
 
     def connectionLost(self, reason):
         log.info("bye ws client %r", self.wsClient)
-        self.settings.db.clientErrored(
-            Failure(WebsocketDisconnect(reason)), self.wsClient)
+        self.settings.db.clientErrored(Failure(WebsocketDisconnect(reason)),
+                                       self.wsClient)
 
     def messageReceived(self, message: bytes):
         if message == b'PING':
@@ -352,6 +377,7 @@ class WebsocketClient(cyclone.websocket.WebSocketHandler):
         assert self.wsClient is not None
         p.senderUpdateUri = self.wsClient.updateUri
         self.settings.db.patch(p)
+
 
 class Live(cyclone.websocket.WebSocketHandler):
 
@@ -368,11 +394,15 @@ class Live(cyclone.websocket.WebSocketHandler):
         log.info("got message %s" % message)
         self.sendMessage(message)
 
+
 liveClients: Set[Live] = set()
+
+
 def sendToLiveClients(d=None, asJson=None):
     j = asJson or json.dumps(d)
     for c in liveClients:
         c.sendMessage(j)
+
 
 class NoExts(cyclone.web.StaticFileHandler):
     # .html pages can be get() without .html on them
@@ -382,8 +412,8 @@ class NoExts(cyclone.web.StaticFileHandler):
         cyclone.web.StaticFileHandler.get(self, path, *args, **kw)
 
 
-def main(dirUriMap: Optional[DirUriMap]=None,
-         prefixes: Optional[Dict[str, URIRef]]=None,
+def main(dirUriMap: Optional[DirUriMap] = None,
+         prefixes: Optional[Dict[str, URIRef]] = None,
          port=9999):
 
     if dirUriMap is None:
@@ -394,35 +424,39 @@ def main(dirUriMap: Optional[DirUriMap]=None,
             'rdfs': URIRef('http://www.w3.org/2000/01/rdf-schema#'),
             'xsd': URIRef('http://www.w3.org/2001/XMLSchema#'),
         }
-    
+
     logging.basicConfig()
     log = logging.getLogger()
 
     parser = optparse.OptionParser()
-    parser.add_option("-v", "--verbose", action="store_true",
+    parser.add_option("-v",
+                      "--verbose",
+                      action="store_true",
                       help="logging.DEBUG")
     (options, args) = parser.parse_args()
 
     log.setLevel(logging.DEBUG if options.verbose else logging.INFO)
 
-    db = Db(dirUriMap=dirUriMap,
-            addlPrefixes={None: prefixes})
+    db = Db(dirUriMap=dirUriMap, addlPrefixes={None: prefixes})
 
     from twisted.python import log as twlog
     twlog.startLogging(sys.stdout)
 
-    reactor.listenTCP(port, cyclone.web.Application(handlers=[
-        (r'/live', Live),
-        (r'/graph', GraphResource),
-        (r'/patches', Patches),
-        (r'/graphClients', GraphClients),
-        (r'/syncedGraph', WebsocketClient),
-        (r'/prefixes', Prefixes),
-
-        (r'/(.*)', NoExts,
-         {"path" : FilePath(__file__).sibling("web").path,
-          "default_filename" : "index.html"}),
-
-        ], debug=True, db=db))
+    reactor.listenTCP(
+        port,
+        cyclone.web.Application(handlers=[
+            (r'/live', Live),
+            (r'/graph', GraphResource),
+            (r'/patches', Patches),
+            (r'/graphClients', GraphClients),
+            (r'/syncedGraph', WebsocketClient),
+            (r'/prefixes', Prefixes),
+            (r'/(.*)', NoExts, {
+                "path": FilePath(__file__).sibling("web").path,
+                "default_filename": "index.html"
+            }),
+        ],
+                                debug=True,
+                                db=db))
     log.info("serving on %s" % port)
     reactor.run()
