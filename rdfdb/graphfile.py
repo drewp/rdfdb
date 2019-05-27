@@ -1,11 +1,13 @@
 import logging, traceback, os, time
 from twisted.python.filepath import FilePath
 from twisted.internet import reactor
-from twisted.internet.inotify import humanReadableMask
+from twisted.internet.interfaces import IDelayedCall
+from twisted.internet.inotify import INotify, humanReadableMask
 from rdflib import Graph, RDF, URIRef
 from rdfdb.patch import Patch
 from rdfdb.rdflibpatch import inContext
-from typing import Dict
+from typing import Dict, Optional
+from typing_extensions import Protocol
 
 log = logging.getLogger('graphfile')
 iolog = logging.getLogger('io')
@@ -60,11 +62,25 @@ def patchN3SerializerToUseLessWhitespace(cutColumn=65):
 
 patchN3SerializerToUseLessWhitespace()
 
+
+class PatchCb(Protocol):
+    def __call__(self, patch: Patch, dueToFileChange: bool=False) -> None: ...
+
+class GetSubgraph(Protocol):
+    def __call__(self, uri: URIRef) -> Graph: ...
+    
 class GraphFile(object):
     """
     one rdf file that we read from, write to, and notice external changes to
     """
-    def __init__(self, notifier, path, uri, patch, getSubgraph, globalPrefixes, ctxPrefixes):
+    def __init__(self,
+                 notifier: INotify,
+                 path: bytes,
+                 uri: URIRef,
+                 patch: PatchCb,
+                 getSubgraph: GetSubgraph,
+                 globalPrefixes: Dict[str, URIRef],
+                 ctxPrefixes: Dict[str, URIRef]):
         """
         uri is the context for the triples in this file. We assume
         sometimes that we're the only ones with triples in this
@@ -77,7 +93,7 @@ class GraphFile(object):
         self.path, self.uri = path, uri
         self.patch, self.getSubgraph = patch, getSubgraph
 
-        self.lastWriteTimestamp = 0 # mtime from the last time _we_ wrote
+        self.lastWriteTimestamp = 0.0 # mtime from the last time _we_ wrote
 
         self.globalPrefixes = globalPrefixes
         self.ctxPrefixes = ctxPrefixes
@@ -99,12 +115,12 @@ class GraphFile(object):
 
 
         self.flushDelay = 2 # seconds until we have to call flush() when dirty
-        self.writeCall = None # or DelayedCall
+        self.writeCall: Optional[IDelayedCall] = None
 
         self.notifier = notifier
         self.addWatch()
         
-    def addWatch(self):
+    def addWatch(self) -> None:
 
         # emacs save comes in as IN_MOVE_SELF, maybe
         
@@ -120,7 +136,7 @@ class GraphFile(object):
         log.info("add watch on %s", self.path)
         self.notifier.watch(FilePath(self.path), callbacks=[self.notify])
         
-    def notify(self, notifier, filepath, mask):
+    def notify(self, notifier: INotify, filepath: FilePath, mask: int) -> None:
         try:
             maskNames = humanReadableMask(mask)
             if maskNames[0] == 'delete_self':
@@ -156,7 +172,7 @@ class GraphFile(object):
         except Exception:
             traceback.print_exc()
 
-    def fileGone(self):
+    def fileGone(self) -> None:
         """
         our file is gone; remove the statements from that context
         """
@@ -165,7 +181,7 @@ class GraphFile(object):
         if myQuads:
             self.patch(Patch(delQuads=myQuads), dueToFileChange=True)
             
-    def reread(self):
+    def reread(self) -> None:
         """update the graph with any diffs from this file
 
         n3 parser fails on "1.e+0" even though rdflib was emitting that itself
@@ -205,7 +221,7 @@ class GraphFile(object):
         else:
             log.debug("old == new after reread of %s", self.path)
 
-    def dirty(self, graph):
+    def dirty(self, graph: Graph) -> None:
         """
         there are new contents to write to our file
         
@@ -227,12 +243,13 @@ class GraphFile(object):
         if self.writeCall:
             self.writeCall.reset(self.flushDelay)
         else:
-            self.writeCall = reactor.callLater(self.flushDelay, self.flush)
+            # This awkward assignment is just to hide from mypy.
+            setattr(self, 'writeCall', reactor.callLater(self.flushDelay, self.flush))
 
-    def flush(self):
+    def flush(self) -> None:
         self.writeCall = None
 
-        tmpOut = self.path + ".rdfdb-temp"
+        tmpOut = self.path + b".rdfdb-temp"
         f = open(tmpOut, 'wb')
         t1 = time.time()
         for p, n in (list(self.globalPrefixes.items()) +
@@ -247,7 +264,7 @@ class GraphFile(object):
         iolog.info("%s rewrote in %.1f ms",
                    self.path, serializeTime * 1000)
         
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "%s(path=%r, uri=%r, ...)" % (
             self.__class__.__name__, self.path, self.uri)
         

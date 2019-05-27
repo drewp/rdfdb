@@ -1,6 +1,7 @@
 import random, logging
 from itertools import chain
 from rdflib import URIRef, RDF
+from rdflib.term import Node
 from rdfdb.patch import Patch, quadsWithContextUris
 log = logging.getLogger('graphedit')
 
@@ -25,11 +26,11 @@ class GraphEditApi(object):
                       if newObject is not None else [])
         return Patch(delQuads=existing, addQuads=toAdd).simplify()
 
-    def patchObject(self, context, subject, predicate, newObject):
+    def patchObject(self, context: URIRef, subject: Node, predicate: URIRef, newObject: Node):
         p = self.getObjectPatch(context, subject, predicate, newObject)
         if not p.isNoop():
             log.debug("patchObject %r" % p.jsonRepr)
-        self.patch(p)
+        self.patch(p) # type: ignore
 
     def patchSubgraph(self, context, newGraph):
         """

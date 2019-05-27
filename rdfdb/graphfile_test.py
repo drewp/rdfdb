@@ -16,7 +16,7 @@ class TestGraphFileOutput(unittest.TestCase):
 
         def getSubgraph(uri):
             return Graph()
-        gf = GraphFile(mock.Mock(), tf.name, URIRef('uri'), mock.Mock(), getSubgraph, {}, {})
+        gf = GraphFile(mock.Mock(), tf.name.encode('ascii'), URIRef('uri'), mock.Mock(), getSubgraph, {}, {})
         gf.reread()
         
         newGraph = Graph()

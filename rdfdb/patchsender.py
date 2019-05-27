@@ -1,5 +1,5 @@
 import logging, time
-from typing import List
+from typing import List, Tuple, Optional
 import cyclone.httpclient
 from rdflib import URIRef
 from twisted.internet import defer
@@ -7,13 +7,15 @@ from rdfdb.patch import Patch
 
 log = logging.getLogger('syncedgraph')
 
+SendResult = defer.Deferred# to None
+
 class PatchSender(object):
     """
     SyncedGraph may generate patches faster than we can send
     them. This object buffers and may even collapse patches before
     they go the server
     """
-    def __init__(self, target, myUpdateResource):
+    def __init__(self, target: URIRef, myUpdateResource):
         """
         target is the URI we'll send patches to
 
@@ -23,11 +25,11 @@ class PatchSender(object):
         """
         self.target = target
         self.myUpdateResource = myUpdateResource
-        self._patchesToSend: List[Patch] = []
-        self._currentSendPatchRequest = None
+        self._patchesToSend: List[Tuple[Patch, SendResult]] = []
+        self._currentSendPatchRequest: Optional[SendResult] = None
 
-    def sendPatch(self, p):
-        sendResult: defer.Deferred[None] = defer.Deferred()
+    def sendPatch(self, p: Patch) -> SendResult:
+        sendResult: SendResult = defer.Deferred()
         self._patchesToSend.append((p, sendResult))
         self._continueSending()
         return sendResult
@@ -41,7 +43,7 @@ class PatchSender(object):
         # 2. or, other code could deal for the fact that cancelAll
         # isn't perfect
 
-    def _continueSending(self):
+    def _continueSending(self) -> None:
         if not self._patchesToSend or self._currentSendPatchRequest:
             return
         if len(self._patchesToSend) > 1:

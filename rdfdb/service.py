@@ -8,7 +8,7 @@ import cyclone.web, cyclone.httpclient, cyclone.websocket
 from typing import Dict, List, Set, Optional, Union
 
 from rdflib import ConjunctiveGraph, URIRef, Graph
-from rdfdb.graphfile import GraphFile
+from rdfdb.graphfile import GraphFile, PatchCb, GetSubgraph
 from rdfdb.patch import Patch, ALLSTMTS
 from rdfdb.rdflibpatch import patchQuads
 from rdfdb.file_vs_uri import correctToTopdirPrefix, fileForUri, uriFromFile, DirUriMap
@@ -63,14 +63,14 @@ def sendGraphToClient(graph, client: Union[Client, WsClient]) -> None:
     client.sendPatch(Patch(
         addQuads=graph.quads(ALLSTMTS),
         delQuads=[]))
-        
+    
 class WatchedFiles(object):
     """
     find files, notice new files.
 
     This object watches directories. Each GraphFile watches its own file.
     """
-    def __init__(self, dirUriMap: DirUriMap, patch, getSubgraph, addlPrefixes):
+    def __init__(self, dirUriMap: DirUriMap, patch: PatchCb, getSubgraph: GetSubgraph, addlPrefixes: Dict[str, URIRef]):
         self.dirUriMap = dirUriMap # {abspath : uri prefix}
         self.patch, self.getSubgraph = patch, getSubgraph
         self.addlPrefixes = addlPrefixes
@@ -143,7 +143,7 @@ class WatchedFiles(object):
         log.info("%s do initial read", inFile)
         gf.reread()
 
-    def aboutToPatch(self, ctx):
+    def aboutToPatch(self, ctx: URIRef):
         """
         warn us that a patch is about to come to this context. it's more
         straightforward to create the new file now
@@ -156,7 +156,10 @@ class WatchedFiles(object):
         """
         if ctx not in self.graphFiles:
             outFile = fileForUri(self.dirUriMap, ctx)
-            assert '//' not in outFile, (outFile, self.dirUriMap, ctx)
+            # mypy missed the next line because of
+            # https://github.com/python/typeshed/issues/2937 ('str in
+            # bytes' isn't an error)
+            assert b'//' not in outFile, (outFile, self.dirUriMap, ctx)
             log.info("starting new file %r", outFile)
             self._addGraphFile(ctx, outFile)
 
@@ -199,7 +202,7 @@ class Db(object):
         
         self.summarizeToLog()
 
-    def patch(self, p, dueToFileChange=False):
+    def patch(self, patch: Patch, dueToFileChange: bool=False) -> None:
         """
         apply this patch to the master graph then notify everyone about it
 
@@ -209,18 +212,18 @@ class Db(object):
         if p has a senderUpdateUri attribute, we won't send this patch
         back to the sender with that updateUri
         """
-        ctx = p.getContext()
+        ctx = patch.getContext()
         log.info("patching graph %s -%d +%d" % (
-            ctx, len(p.delQuads), len(p.addQuads)))
+            ctx, len(patch.delQuads), len(patch.addQuads)))
 
         if hasattr(self, 'watchedFiles'): # not available during startup
             self.watchedFiles.aboutToPatch(ctx)
         
-        patchQuads(self.graph, p.delQuads, p.addQuads, perfect=True)
-        self._sendPatch(p)
+        patchQuads(self.graph, patch.delQuads, patch.addQuads, perfect=True)
+        self._sendPatch(patch)
         if not dueToFileChange:
             self.watchedFiles.dirtyFiles([ctx])
-        sendToLiveClients(asJson=p.jsonRepr)
+        sendToLiveClients(asJson=patch.jsonRepr)
 
     def _sendPatch(self, p):
         senderUpdateUri = getattr(p, 'senderUpdateUri', None)
@@ -245,7 +248,7 @@ class Db(object):
             log.info("  %s: %s statements" %
                      (c.identifier, len(self.getSubgraph(c.identifier))))
 
-    def getSubgraph(self, uri):
+    def getSubgraph(self, uri: URIRef) -> Graph:
         """
         this is meant to return a live view of the given subgraph, but
         if i'm still working around an rdflib bug, it might return a

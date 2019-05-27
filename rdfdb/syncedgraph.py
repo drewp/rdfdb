@@ -16,19 +16,21 @@ PatchReceiver - our web server that listens to edits from the master graph
 PatchSender - collects and transmits your graph edits
 """
 
-from rdflib import ConjunctiveGraph
+from rdflib import ConjunctiveGraph, URIRef
 import logging, cyclone.httpclient, traceback
 from twisted.internet import defer
 import socket
 import treq, json
 log = logging.getLogger('syncedgraph')
 from rdfdb.rdflibpatch import patchQuads
+from typing import Optional
 
 from rdfdb.patchsender import PatchSender
 from rdfdb.patchreceiver import PatchReceiver
 from rdfdb.currentstategraphapi import CurrentStateGraphApi
 from rdfdb.autodepgraphapi import AutoDepGraphApi
 from rdfdb.grapheditapi import GraphEditApi
+from rdfdb.patch import Patch
 
 # everybody who writes literals needs to get this
 from rdfdb.rdflibpatch_literal import patch
@@ -53,7 +55,7 @@ class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
     pending local changes) and get the data again from the
     server.
     """
-    def __init__(self, rdfdbRoot, label, receiverHost=None):
+    def __init__(self, rdfdbRoot: URIRef, label: str, receiverHost: Optional[str]=None):
         """
         label is a string that the server will display in association
         with your connection
@@ -104,7 +106,7 @@ class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
         #diff against old entire graph
         #broadcast that change
 
-    def patch(self, p):
+    def patch(self, p: Patch) -> None:
         """send this patch to the server and apply it to our local
         graph and run handlers"""
 

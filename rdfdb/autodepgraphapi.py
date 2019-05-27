@@ -1,5 +1,5 @@
 import logging
-from typing import Callable, Dict, Set, Tuple
+from typing import Callable, Dict, Set, Tuple, List
 from rdflib import RDF, RDFS, URIRef
 from rdfdb.currentstategraphapi import contextsForStatementNoWildcards
 log = logging.getLogger('autodepgraphapi')
@@ -21,9 +21,9 @@ class AutoDepGraphApi(object):
 
     def __init__(self):
         self._watchers = _GraphWatchers()
-        self.currentFuncs: Callable[[], None] = [] # stack of addHandler callers
+        self.currentFuncs: List[Callable[[], None]] = [] # stack of addHandler callers
     
-    def addHandler(self, func):
+    def addHandler(self, func: Callable[[], None]) -> None:
         """
         run this (idempotent) func, noting what graph values it
         uses. Run it again in the future if there are changes to those
