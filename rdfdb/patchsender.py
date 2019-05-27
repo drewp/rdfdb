@@ -1,6 +1,6 @@
 import logging, time
 from typing import List, Tuple, Optional
-import cyclone.httpclient
+import treq
 from rdflib import URIRef
 from twisted.internet import defer
 from rdfdb.patch import Patch
@@ -125,11 +125,10 @@ def sendPatch(putUri: URIRef, patch: Patch, **kw) -> defer.Deferred:
         log.debug("sendPatch to %s took %.1fms" % (putUri, dt))
         return done
 
-    return cyclone.httpclient.fetch(
-        url=putUri.toPython().encode('ascii'),
-        method=b'PUT',
-        headers={
-            b'Content-Type': [b'application/json']
-        },
-        postdata=body.encode('utf8'),
+    return treq.put(putUri.toPython(),
+                    data=body.encode('utf8'),
+                    headers={
+                        b'Content-Type': [b'application/json']
+                    },
+                    timeout=2,
     ).addCallback(putDone)
