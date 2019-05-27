@@ -51,7 +51,7 @@ class Patch(object):
             self._delGraph = graphFromNQuad(body['patch']['deletes'])
             self._addGraph = graphFromNQuad(body['patch']['adds'])
             if 'senderUpdateUri' in body:
-                self.senderUpdateUri = body['senderUpdateUri']
+                self.senderUpdateUri = URIRef(body['senderUpdateUri'])
 
     def __str__(self):
 

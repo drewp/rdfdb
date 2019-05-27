@@ -1,24 +1,22 @@
-from twisted.internet import reactor, defer
-import twisted.internet.error
-from twisted.python.filepath import FilePath
-from twisted.python.failure import Failure
-from twisted.internet.inotify import IN_CREATE
 import sys, optparse, logging, json, os
-import cyclone.web, cyclone.httpclient, cyclone.websocket
 from typing import Dict, List, Set, Optional, Union
 
+from twisted.internet import reactor, defer
+from twisted.internet.inotify import IN_CREATE, INotify
+from twisted.python.failure import Failure
+from twisted.python.filepath import FilePath
+import cyclone.web, cyclone.httpclient, cyclone.websocket
 from rdflib import ConjunctiveGraph, URIRef, Graph
+import twisted.internet.error
+
+from rdfdb.file_vs_uri import correctToTopdirPrefix, fileForUri, uriFromFile, DirUriMap
 from rdfdb.graphfile import GraphFile, PatchCb, GetSubgraph
 from rdfdb.patch import Patch, ALLSTMTS
-from rdfdb.rdflibpatch import patchQuads
-from rdfdb.file_vs_uri import correctToTopdirPrefix, fileForUri, uriFromFile, DirUriMap
-from rdfdb.patchsender import sendPatch
 from rdfdb.patchreceiver import makePatchEndpointPutMethod
-
-from twisted.internet.inotify import INotify
+from rdfdb.patchsender import sendPatch
+from rdfdb.rdflibpatch import patchQuads
 
 log = logging.getLogger('rdfdb')
-log.setLevel(logging.DEBUG)
 
 
 class WebsocketDisconnect(ValueError):
@@ -234,17 +232,19 @@ class Db(object):
             self.watchedFiles.dirtyFiles([ctx])
         sendToLiveClients(asJson=patch.jsonRepr)
 
-    def _sendPatch(self, p):
-        senderUpdateUri = getattr(p, 'senderUpdateUri', None)
+    def _sendPatch(self, p: Patch):
+        senderUpdateUri: Optional[URIRef] = getattr(p, 'senderUpdateUri', None)
 
         for c in self.clients:
             if c.updateUri == senderUpdateUri:
                 # this client has self-applied the patch already
+                log.debug("_sendPatch: don't resend to %r", c)
                 continue
+            log.debug('_sendPatch: send to %r', c)
             d = c.sendPatch(p)
             d.addErrback(self.clientErrored, c)
 
-    def clientErrored(self, err, c):
+    def clientErrored(self, err, c) -> None:
         err.trap(twisted.internet.error.ConnectError, WebsocketDisconnect)
         log.info("%r %r - dropping client", c, err.getErrorMessage())
         if c in self.clients:
