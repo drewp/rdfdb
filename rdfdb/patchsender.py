@@ -121,8 +121,11 @@ def sendPatch(putUri: URIRef, patch: Patch, **kw) -> defer.Deferred:
 
     def putDone(done):
         if not str(done.code).startswith('2'):
-            raise ValueError("sendPatch request failed %s: %s" %
-                             (done.code, done.body))
+            def fail(content):
+                raise ValueError("sendPatch request failed %s: %s" %
+                                 (done.code, content))
+            return done.content().addCallback(fail)
+
         dt = 1000 * (time.time() - sendTime)
         log.debug("sendPatch to %s took %.1fms" % (putUri, dt))
         return done
