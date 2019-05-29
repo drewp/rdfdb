@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
  
 setup(
     name='rdfdb',
-    version='0.15.0',
+    version='0.16.0',
     packages=find_packages(),
     install_requires=[
         'rdflib',
@@ -12,7 +12,7 @@ setup(
         'rdflib-jsonld',
         'service_identity',
         ],
-    url='https://projects.bigasterisk.com/rdfdb/rdfdb-0.15.0.tar.gz',
+    url='https://projects.bigasterisk.com/rdfdb/rdfdb-0.16.0.tar.gz',
     author='Drew Perttula',
     author_email='drewp@bigasterisk.com',
     entry_points={
