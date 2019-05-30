@@ -11,6 +11,7 @@ setup(
         'treq',
         'rdflib-jsonld',
         'service_identity',
+        'scales', # use git+http://github.com/drewp/scales.git@master#egg=scales
         ],
     url='https://projects.bigasterisk.com/rdfdb/rdfdb-0.16.0.tar.gz',
     author='Drew Perttula',

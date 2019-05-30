@@ -1,7 +1,9 @@
-import sys, optparse, logging, json, os
+import sys, optparse, logging, json, os, time
 from typing import Dict, List, Set, Optional, Union
 
-from twisted.internet import reactor, defer
+from greplin.scales.cyclonehandler import StatsHandler
+from greplin import scales
+from twisted.internet import reactor, defer, task
 from twisted.internet.inotify import IN_CREATE, INotify
 from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
@@ -15,6 +17,26 @@ from rdfdb.patch import Patch, ALLSTMTS
 from rdfdb.patchreceiver import makePatchEndpointPutMethod
 from rdfdb.patchsender import sendPatch
 from rdfdb.rdflibpatch import patchQuads
+
+# move this out
+procStats = scales.collection('/process',
+                              scales.DoubleStat('time'),
+)
+def updateTimeStat():
+    procStats.time = round(time.time(), 3)
+task.LoopingCall(updateTimeStat).start(.2)
+
+stats = scales.collection('/webServer',
+                          scales.IntStat('plainClients'),
+                          scales.IntStat('websocketClients'),
+                          scales.PmfStat('setAttr'),
+)
+graphStats = scales.collection('/graph',
+                          scales.IntStat('statements'),
+                          scales.RecentFpsStat('patchFps'),
+)
+fileStats = scales.collection('/file',
+                              )
 
 log = logging.getLogger('rdfdb')
 
@@ -203,12 +225,15 @@ class Db(object):
     def __init__(self, dirUriMap: DirUriMap, addlPrefixes):
         self.clients: List[Union[Client, WsClient]] = []
         self.graph = ConjunctiveGraph()
+        stats.graphLen = len(self.graph)
+        stats.plainClients = len(self.clients)
 
         self.watchedFiles = WatchedFiles(dirUriMap, self.patch,
                                          self.getSubgraph, addlPrefixes)
 
         self.summarizeToLog()
 
+    @graphStats.patchFps.rate()
     def patch(self, patch: Patch, dueToFileChange: bool = False) -> None:
         """
         apply this patch to the master graph then notify everyone about it
@@ -227,10 +252,12 @@ class Db(object):
             self.watchedFiles.aboutToPatch(ctx)
 
         patchQuads(self.graph, patch.delQuads, patch.addQuads, perfect=True)
+        stats.graphLen = len(self.graph)
         self._sendPatch(patch)
         if not dueToFileChange:
             self.watchedFiles.dirtyFiles([ctx])
         sendToLiveClients(asJson=patch.jsonRepr)
+        graphStats.statements = len(self.graph)
 
     def _sendPatch(self, p: Patch):
         senderUpdateUri: Optional[URIRef] = getattr(p, 'senderUpdateUri', None)
@@ -249,6 +276,7 @@ class Db(object):
         log.info("%r %r - dropping client", c, err.getErrorMessage())
         if c in self.clients:
             self.clients.remove(c)
+        stats.plainClients = len(self.clients)
         self.sendClientsToAllLivePages()
 
     def summarizeToLog(self):
@@ -282,6 +310,7 @@ class Db(object):
         sendGraphToClient(self.graph, newClient)
         self.clients.append(newClient)
         self.sendClientsToAllLivePages()
+        stats.plainClients = len(self.clients)
 
     def sendClientsToAllLivePages(self) -> None:
         sendToLiveClients({
@@ -384,11 +413,13 @@ class Live(cyclone.websocket.WebSocketHandler):
     def connectionMade(self, *args, **kwargs):
         log.info("websocket opened")
         liveClients.add(self)
+        stats.websocketClients = len(liveClients)
         self.settings.db.sendClientsToAllLivePages()
 
     def connectionLost(self, reason):
         log.info("websocket closed")
         liveClients.remove(self)
+        stats.websocketClients = len(liveClients)
 
     def messageReceived(self, message):
         log.info("got message %s" % message)
@@ -396,7 +427,7 @@ class Live(cyclone.websocket.WebSocketHandler):
 
 
 liveClients: Set[Live] = set()
-
+stats.websocketClients = len(liveClients)
 
 def sendToLiveClients(d=None, asJson=None):
     j = asJson or json.dumps(d)
@@ -451,6 +482,7 @@ def main(dirUriMap: Optional[DirUriMap] = None,
             (r'/graphClients', GraphClients),
             (r'/syncedGraph', WebsocketClient),
             (r'/prefixes', Prefixes),
+            (r'/stats/(.*)', StatsHandler, {'serverName': 'rdfdb'}),
             (r'/(.*)', NoExts, {
                 "path": FilePath(__file__).sibling("web").path,
                 "default_filename": "index.html"
