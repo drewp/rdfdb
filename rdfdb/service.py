@@ -379,7 +379,7 @@ class Prefixes(cyclone.web.RequestHandler):
                                 {}).update(suggestion['prefixes'])
 
 
-_wsClientSerial = 0
+_wsClientSerial = itertools.count(0)
 
 
 class WebsocketClient(cyclone.websocket.WebSocketHandler):
@@ -387,11 +387,10 @@ class WebsocketClient(cyclone.websocket.WebSocketHandler):
     wsClient: Optional[WsClient] = None
 
     def connectionMade(self, *args, **kwargs) -> None:
-        global _wsClientSerial
-        connectionId = f'connection-{_wsClientSerial}'
-        _wsClientSerial += 1
+        connectionId = f'WS{next(_wsClientSerial)}'
 
         self.wsClient = WsClient(connectionId, self.sendMessage)
+        self.sendMessage(json.dumps({'connectedAs': connectionId}))
         log.info("new ws client %r", self.wsClient)
         self.settings.db.addClient(self.wsClient)
 
