@@ -425,7 +425,8 @@ class Live(cyclone.websocket.WebSocketHandler):
 
     def messageReceived(self, message: bytes):
         log.info("got message %s" % message)
-        self.sendMessage(message)
+        # this is just a leftover test?
+        self.sendMessage(message.decode('utf8'))
 
 
 liveClients: Set[Live] = set()
