@@ -56,9 +56,10 @@ class PatchReceiver(object):
 
 def makePatchEndpointPutMethod(cb):
 
-    def put(self):
+    def put(self) -> None:
+        assert isinstance(self, cyclone.web.RequestHandler)
         try:
-            p = Patch(jsonRepr=self.request.body)
+            p = Patch(jsonRepr=self.request.body.decode('utf8'))
             log.debug("received patch -%d +%d" %
                       (len(p.delGraph), len(p.addGraph)))
             cb(p)

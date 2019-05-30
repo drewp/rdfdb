@@ -1,5 +1,5 @@
-import sys, optparse, logging, json, os, time
-from typing import Dict, List, Set, Optional, Union
+import sys, optparse, logging, json, os, time, itertools
+from typing import Callable, Dict, List, Set, Optional, Union
 
 from greplin.scales.cyclonehandler import StatsHandler
 from greplin import scales
@@ -71,7 +71,7 @@ class Client(object):
 
 class WsClient(object):
 
-    def __init__(self, connectionId: str, sendMessage):
+    def __init__(self, connectionId: str, sendMessage: Callable[[str], None]):
         self.updateUri = URIRef(connectionId)
         self.sendMessage = sendMessage
 
@@ -429,12 +429,13 @@ class Live(cyclone.websocket.WebSocketHandler):
 
 
 liveClients: Set[Live] = set()
-stats.websocketClients = len(liveClients)
+stats.liveClients = len(liveClients)
 
-def sendToLiveClients(d=None, asJson=None):
-    j = asJson or json.dumps(d)
+def sendToLiveClients(d: Optional[Dict]=None, asJson: Optional[str]=None):
+    msg: str = asJson or json.dumps(d)
+    assert isinstance(msg, str), repr(msg)
     for c in liveClients:
-        c.sendMessage(j)
+        c.sendMessage(msg)
 
 
 class NoExts(cyclone.web.StaticFileHandler):

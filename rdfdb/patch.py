@@ -42,6 +42,7 @@ class Patch(object):
 
         4th element of a quad must be a URIRef
         """
+        assert jsonRepr is None or isinstance(jsonRepr, str), repr(jsonRepr)
         self._jsonRepr = jsonRepr
         self._addQuads, self._delQuads = addQuads, delQuads
         self._addGraph, self._delGraph = addGraph, delGraph
@@ -138,7 +139,9 @@ class Patch(object):
         if '[<' in d['patch']['adds']:
             raise ValueError("[< found in %s" % d['patch']['adds'])
         d.update(extraAttrs)
-        return json.dumps(d)
+        s = json.dumps(d)
+        assert isinstance(s, str), repr(s)
+        return s
 
     def simplify(self):
         adds = set(self.addQuads)
