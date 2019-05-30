@@ -27,8 +27,8 @@ def updateTimeStat():
 task.LoopingCall(updateTimeStat).start(.2)
 
 stats = scales.collection('/webServer',
-                          scales.IntStat('plainClients'),
-                          scales.IntStat('websocketClients'),
+                          scales.IntStat('clients'),
+                          scales.IntStat('liveClients'),
                           scales.PmfStat('setAttr'),
 )
 graphStats = scales.collection('/graph',
@@ -36,6 +36,7 @@ graphStats = scales.collection('/graph',
                           scales.RecentFpsStat('patchFps'),
 )
 fileStats = scales.collection('/file',
+                              scales.IntStat('mappedGraphFiles'),
                               )
 
 log = logging.getLogger('rdfdb')
@@ -201,6 +202,7 @@ class WatchedFiles(object):
                        globalPrefixes=self.addlPrefixes[None],
                        ctxPrefixes=self.addlPrefixes[ctx])
         self.graphFiles[ctx] = gf
+        fileStats.mappedGraphFiles = len(self.graphFiles)
         return gf
 
     def dirtyFiles(self, ctxs):
@@ -226,7 +228,7 @@ class Db(object):
         self.clients: List[Union[Client, WsClient]] = []
         self.graph = ConjunctiveGraph()
         stats.graphLen = len(self.graph)
-        stats.plainClients = len(self.clients)
+        stats.clients = len(self.clients)
 
         self.watchedFiles = WatchedFiles(dirUriMap, self.patch,
                                          self.getSubgraph, addlPrefixes)
@@ -276,7 +278,7 @@ class Db(object):
         log.info("%r %r - dropping client", c, err.getErrorMessage())
         if c in self.clients:
             self.clients.remove(c)
-        stats.plainClients = len(self.clients)
+        stats.clients = len(self.clients)
         self.sendClientsToAllLivePages()
 
     def summarizeToLog(self):
@@ -310,7 +312,7 @@ class Db(object):
         sendGraphToClient(self.graph, newClient)
         self.clients.append(newClient)
         self.sendClientsToAllLivePages()
-        stats.plainClients = len(self.clients)
+        stats.clients = len(self.clients)
 
     def sendClientsToAllLivePages(self) -> None:
         sendToLiveClients({
@@ -413,15 +415,15 @@ class Live(cyclone.websocket.WebSocketHandler):
     def connectionMade(self, *args, **kwargs):
         log.info("websocket opened")
         liveClients.add(self)
-        stats.websocketClients = len(liveClients)
+        stats.liveClients = len(liveClients)
         self.settings.db.sendClientsToAllLivePages()
 
     def connectionLost(self, reason):
         log.info("websocket closed")
         liveClients.remove(self)
-        stats.websocketClients = len(liveClients)
+        stats.liveClients = len(liveClients)
 
-    def messageReceived(self, message):
+    def messageReceived(self, message: bytes):
         log.info("got message %s" % message)
         self.sendMessage(message)
 
