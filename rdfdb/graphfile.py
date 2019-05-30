@@ -249,7 +249,7 @@ class GraphFile(object):
         going towards a text file editor
         
         """
-        log.info("%s dirty, needs write", self.path)
+        log.debug("%s dirty, needs write", self.path)
 
         self.graphToWrite = graph
         if self.writeCall:

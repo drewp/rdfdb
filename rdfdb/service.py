@@ -85,8 +85,9 @@ class WsClient(object):
 
 def sendGraphToClient(graph, client: Union[Client, WsClient]) -> None:
     """send the client the whole graph contents"""
-    log.info("sending all graphs to %r" % client)
+    log.info("sending all graphs to %r..." % client)
     client.sendPatch(Patch(addQuads=graph.quads(ALLSTMTS), delQuads=[]))
+    log.info("...sent.")
 
 
 class WatchedFiles(object):

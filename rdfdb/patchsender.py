@@ -7,7 +7,7 @@ import treq
 
 from rdfdb.patch import Patch
 
-log = logging.getLogger('syncedgraph')
+log = logging.getLogger('patchsender')
 
 SendResult = defer.Deferred  # to None
 
@@ -122,8 +122,10 @@ def sendPatch(putUri: URIRef, patch: Patch, **kw) -> defer.Deferred:
     def putDone(done):
         if not str(done.code).startswith('2'):
             def fail(content):
-                raise ValueError("sendPatch request failed %s: %s" %
-                                 (done.code, content))
+                log.warn(f"Sent patch to {putUri}:")
+                log.warn(str(patch))
+                log.warn(f"Receiver failed {done.code} {content}")
+                raise ValueError("sendPatch failed")
             return done.content().addCallback(fail)
 
         dt = 1000 * (time.time() - sendTime)

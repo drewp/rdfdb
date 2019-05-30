@@ -63,7 +63,10 @@ def makePatchEndpointPutMethod(cb):
             log.debug("received patch -%d +%d" %
                       (len(p.delGraph), len(p.addGraph)))
             cb(p)
-        except:
+        except Exception as e:
+            self.set_status(500)
+            # a string that will look good in rdfdb's log
+            self.write(repr(e))
             traceback.print_exc()
             raise
 
