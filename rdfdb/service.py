@@ -249,7 +249,8 @@ class Db(object):
         log.info("patching graph %s -%d +%d" %
                  (ctx, len(patch.delQuads), len(patch.addQuads)))
 
-        self.watchedFiles.aboutToPatch(ctx)
+        if hasattr(self, 'watchedFiles'): # todo: eliminate this
+            self.watchedFiles.aboutToPatch(ctx)
 
         # an error here needs to drop the sender, and reset everyone
         # else if we can't rollback the failing patch.

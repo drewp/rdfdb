@@ -118,11 +118,6 @@ class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
         self.initiallySynced: defer.Deferred[None] = defer.Deferred()
         self._graph = ConjunctiveGraph()
 
-        #self._receiver = PatchReceiver(self.rdfdbRoot, receiverHost, label,
-        #                               self._onPatch)
-
-        #self._sender = PatchSender(self.rdfdbRoot + 'patches',
-        #                           self._receiver.updateResource)
         AutoDepGraphApi.__init__(self)
         # this needs more state to track if we're doing a resync (and
         # everything has to error or wait) or if we're live
