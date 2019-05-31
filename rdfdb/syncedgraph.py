@@ -42,10 +42,16 @@ log = logging.getLogger('syncedgraph')
 class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
     """
     graph for clients to use. Changes are synced with the master graph
-    in the rdfdb process.
+    in the rdfdb process. 
 
-    This api is like rdflib.Graph but it can also call you back when
-    there are graph changes to the parts you previously read.
+    self.patch(p: Patch) is the only way to write to the graph.
+
+    Reading can be done with the AutoDepGraphApi methods which set up
+    watchers to call you back when the results of the read have
+    changed (like knockoutjs). Or you can read with
+    CurrentStateGraphApi which doesn't have watchers, but you have to
+    opt into using it so it's clear you aren't in an auto-dep context
+    and meant to set up watchers.
 
     You may want to attach to self.initiallySynced deferred so you
     don't attempt patches before we've heard the initial contents of
@@ -54,8 +60,7 @@ class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
     statements unless we have the correct graph.
 
     If we get out of sync, we abandon our local graph (even any
-    pending local changes) and get the data again from the
-    server.
+    pending local changes) and get the data again from the server.
     """
 
     def __init__(self,
