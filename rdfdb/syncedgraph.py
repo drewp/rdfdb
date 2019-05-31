@@ -11,27 +11,23 @@ your dependencies like AutoDepGraphApi does
 GraphEditApi - methods to write patches to the graph for common
 operations, e.g. replacing a value, or editing a mapping
 
-PatchReceiver - our web server that listens to edits from the master graph
-
-PatchSender - collects and transmits your graph edits
+WsClientProtocol one connection with the rdfdb server.
 """
 
 import json, logging, traceback
 from typing import Optional
+import urllib.parse
 
-from rdflib import ConjunctiveGraph, URIRef
-from twisted.internet import defer
-import socket
-import treq
-import autobahn.twisted.websocket
-from twisted.internet import reactor
 from rdfdb.autodepgraphapi import AutoDepGraphApi
 from rdfdb.currentstategraphapi import CurrentStateGraphApi
 from rdfdb.grapheditapi import GraphEditApi
 from rdfdb.patch import Patch
-from rdfdb.patchreceiver import PatchReceiver
-from rdfdb.patchsender import PatchSender
 from rdfdb.rdflibpatch import patchQuads
+from rdflib import ConjunctiveGraph, URIRef
+from twisted.internet import defer
+from twisted.internet import reactor
+import autobahn.twisted.websocket
+import treq
 
 # everybody who writes literals needs to get this
 from rdfdb.rdflibpatch_literal import patch
@@ -41,15 +37,46 @@ log = logging.getLogger('syncedgraph')
 
 
 
-class WsClient(autobahn.twisted.websocket.WebSocketClientProtocol):
-    def __init__(self, sg=0):
+class WsClientProtocol(autobahn.twisted.websocket.WebSocketClientProtocol):
+    def __init__(self, sg):
         super().__init__()
         self.sg = sg
-    def onOpen(self):
-        print('ws open')
-    def onMessage(self, payload, isBinary):
-        print('on msg')
+        self.sg.currentClient = self
+        self.connectionId = None
 
+    def onConnect(self, response):
+        log.info('conn %r', response)
+
+    def onOpen(self):
+        log.info('ws open')
+        
+    def onMessage(self, payload, isBinary):
+        msg = json.loads(payload)
+        if 'connectedAs' in msg:
+            self.connectionId = msg['connectedAs']
+            log.info(f'rdfdb calls us {self.connectionId}')
+        elif 'patch' in msg:
+            p = Patch(jsonRepr=payload.decode('utf8'))
+            log.debug("received patch %s", p.shortSummary())
+            self.sg.onPatchFromDb(p)
+        else:
+            log.warn('unknown msg from websocket: %s...', payload[:32])
+
+    def sendPatch(self, p: Patch):
+        # this is where we could concatenate little patches into a
+        # bigger one. Often, many statements will cancel each
+        # other out.
+
+        # also who's going to accumulate patches when server is down,
+        # or is that not allowed?
+        if self.connectionId is None:
+            raise ValueError("can't send patches before we get an id")
+        body = p.makeJsonRepr()
+        log.debug(f'connectionId={self.connectionId} sending patch {len(body)} bytes')
+        self.sendMessage(body.encode('utf8'))
+
+    def onClose(self, wasClean, code, reason):
+        log.info("WebSocket connection closed: {0}".format(reason))
 
 class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
     """
@@ -86,15 +113,7 @@ class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
         receiverHost is the hostname other nodes can use to talk to me
         """
 
-        # get that reonnecting agent
-        factory = autobahn.twisted.websocket.WebSocketClientFactory()
-        factory.protocol = WsClient
-
-        reactor.connectTCP("127.0.0.1", 8209, factory) #  need the path of /patches
-        
-        #if receiverHost is None:
-        #    receiverHost = socket.gethostname()
-
+        self.connectSocket(rdfdbRoot)
         self.rdfdbRoot = rdfdbRoot
         self.initiallySynced: defer.Deferred[None] = defer.Deferred()
         self._graph = ConjunctiveGraph()
@@ -107,6 +126,18 @@ class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
         AutoDepGraphApi.__init__(self)
         # this needs more state to track if we're doing a resync (and
         # everything has to error or wait) or if we're live
+
+    def connectSocket(self, rdfdbRoot: URIRef):
+        factory = autobahn.twisted.websocket.WebSocketClientFactory(
+            rdfdbRoot.replace('http://', 'ws://') + 'syncedGraph',
+            # Don't know if this is required by spec, but
+            # cyclone.websocket breaks with no origin header.
+            origin='foo')
+        factory.protocol = lambda: WsClientProtocol(self)
+
+        rr = urllib.parse.urlparse(rdfdbRoot)
+        reactor.connectTCP(rr.hostname.encode('ascii'), rr.port, factory)
+        #WsClientProtocol sets our currentClient. Needs rewrite using agents.
 
     def resync(self):
         """
@@ -123,17 +154,12 @@ class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
         UIs who want to show that we're doing a resync.
         """
         log.info('resync')
-        self._sender.cancelAll()
-        # this should be locked so only one resync goes on at once
-        return treq.get(self.rdfdbRoot.toPython() + "graph",
-            headers={
-                b'Accept': [b'x-trig']
-            },
-        ).addCallback(self._resyncGraph)
+        self.currentClient.dropConnection()
 
     def _resyncGraph(self, response):
         log.warn("new graph in")
 
+        self.currentClient.dropConnection()
         #diff against old entire graph
         #broadcast that change
 
@@ -151,18 +177,15 @@ class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
         debugKey = '[id=%s]' % (id(p) % 1000)
         log.debug("\napply local patch %s %s", debugKey, p)
         try:
-            patchQuads(self._graph,
-                       deleteQuads=p.delQuads,
-                       addQuads=p.addQuads,
-                       perfect=True)
+            self._applyPatchLocally(p)
         except ValueError as e:
             log.error(e)
-            self.sendFailed(None)
+            self.resync()
             return
         log.debug('runDepsOnNewPatch')
         self.runDepsOnNewPatch(p)
         log.debug('sendPatch')
-        self._sender.sendPatch(p).addErrback(self.sendFailed)
+        self.currentClient.sendPatch(p)
         log.debug('patch is done %s', debugKey)
 
     def suggestPrefixes(self, ctx, prefixes):
@@ -177,25 +200,17 @@ class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
                       'prefixes': prefixes
                   }).encode('utf8'))
 
-    def sendFailed(self, result):
-        """
-        we asked for a patch to be queued and sent to the master, and
-        that ultimately failed because of a conflict
-        """
-        log.warn("sendFailed")
-        self.resync()
+    def _applyPatchLocally(self, p: Patch):
+        # .. and disconnect on failure
+        patchQuads(self._graph, p.delQuads, p.addQuads, perfect=True)
+        log.debug("graph now has %s statements" % len(self._graph))
 
-        #i think we should receive back all the pending patches,
-        #do a resync here,
-        #then requeue all the pending patches (minus the failing one?) after that's done.
-
-    def _onPatch(self, p):
+    def onPatchFromDb(self, p):
         """
         central server has sent us a patch
         """
-        log.debug('_onPatch server has sent us %s', p)
-        patchQuads(self._graph, p.delQuads, p.addQuads, perfect=True)
-        log.debug("graph now has %s statements" % len(self._graph))
+        log.debug('server has sent us %s', p)
+        self._applyPatchLocally(p)
         try:
             self.runDepsOnNewPatch(p)
         except Exception:
