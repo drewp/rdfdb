@@ -23,7 +23,8 @@ from rdflib import ConjunctiveGraph, URIRef
 from twisted.internet import defer
 import socket
 import treq
-
+import autobahn.twisted.websocket
+from twisted.internet import reactor
 from rdfdb.autodepgraphapi import AutoDepGraphApi
 from rdfdb.currentstategraphapi import CurrentStateGraphApi
 from rdfdb.grapheditapi import GraphEditApi
@@ -37,6 +38,17 @@ from rdfdb.rdflibpatch_literal import patch
 patch()
 
 log = logging.getLogger('syncedgraph')
+
+
+
+class WsClient(autobahn.twisted.websocket.WebSocketClientProtocol):
+    def __init__(self, sg=0):
+        super().__init__()
+        self.sg = sg
+    def onOpen(self):
+        print('ws open')
+    def onMessage(self, payload, isBinary):
+        print('on msg')
 
 
 class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
@@ -73,18 +85,25 @@ class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
 
         receiverHost is the hostname other nodes can use to talk to me
         """
-        if receiverHost is None:
-            receiverHost = socket.gethostname()
+
+        # get that reonnecting agent
+        factory = autobahn.twisted.websocket.WebSocketClientFactory()
+        factory.protocol = WsClient
+
+        reactor.connectTCP("127.0.0.1", 8209, factory) #  need the path of /patches
+        
+        #if receiverHost is None:
+        #    receiverHost = socket.gethostname()
 
         self.rdfdbRoot = rdfdbRoot
         self.initiallySynced: defer.Deferred[None] = defer.Deferred()
         self._graph = ConjunctiveGraph()
 
-        self._receiver = PatchReceiver(self.rdfdbRoot, receiverHost, label,
-                                       self._onPatch)
+        #self._receiver = PatchReceiver(self.rdfdbRoot, receiverHost, label,
+        #                               self._onPatch)
 
-        self._sender = PatchSender(self.rdfdbRoot + 'patches',
-                                   self._receiver.updateResource)
+        #self._sender = PatchSender(self.rdfdbRoot + 'patches',
+        #                           self._receiver.updateResource)
         AutoDepGraphApi.__init__(self)
         # this needs more state to track if we're doing a resync (and
         # everything has to error or wait) or if we're live
