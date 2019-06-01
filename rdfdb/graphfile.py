@@ -3,19 +3,20 @@ from twisted.python.filepath import FilePath
 from twisted.internet import reactor
 from twisted.internet.interfaces import IDelayedCall
 from twisted.internet.inotify import INotify, humanReadableMask
-from rdflib import Graph, RDF, URIRef
+from rdflib import Graph, RDF, URIRef, Literal, XSD
 from rdfdb.patch import Patch
 from rdfdb.rdflibpatch import inContext
 from typing import Dict, Optional
 from typing_extensions import Protocol
 
+
 log = logging.getLogger('graphfile')
 iolog = logging.getLogger('io')
 
 
-def patchN3SerializerToUseLessWhitespace(cutColumn=65):
+def patchN3SerializerToUseLessWhitespace(cutColumn=75):
     # todo: make a n3serializer subclass with whitespace settings
-    from rdflib.plugins.serializers.turtle import TurtleSerializer, OBJECT
+    from rdflib.plugins.serializers.turtle import TurtleSerializer, OBJECT, VERB, _GEN_QNAME_FOR_DT
     originalWrite = TurtleSerializer.write
 
     def write(self, s):
@@ -67,6 +68,26 @@ def patchN3SerializerToUseLessWhitespace(cutColumn=65):
     TurtleSerializer.predicateList = predicateList  # type: ignore
     TurtleSerializer.objectList = objectList  # type: ignore
 
+    def custom_literal(node, qname_callback):
+        if node.datatype == XSD['double']:
+            num = node.toPython()
+            return '%g' % num
+        return node._literal_n3(use_plain=True, qname_callback=qname_callback)
+    
+    def label(self, node, position):
+        if node == RDF.nil:
+            return '()'
+        if position is VERB and node in self.keywords:
+            return self.keywords[node]
+        if isinstance(node, Literal):
+            return custom_literal(node, # <- switch to this
+                qname_callback=lambda dt: self.getQName(
+                    dt, _GEN_QNAME_FOR_DT))
+        else:
+            node = self.relativize(node)
+
+            return self.getQName(node, position == VERB) or node.n3()
+    TurtleSerializer.label = label  # type: ignore
 
 patchN3SerializerToUseLessWhitespace()
 
