@@ -49,6 +49,7 @@ class WsClientProtocol(autobahn.twisted.websocket.WebSocketClientProtocol):
 
     def onOpen(self):
         log.info('ws open')
+        self.sg.isConnected = True
         
     def onMessage(self, payload, isBinary):
         msg = json.loads(payload)
@@ -77,6 +78,7 @@ class WsClientProtocol(autobahn.twisted.websocket.WebSocketClientProtocol):
 
     def onClose(self, wasClean, code, reason):
         log.info("WebSocket connection closed: {0}".format(reason))
+        self.sg.isConnected = False
 
 class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
     """
@@ -112,7 +114,8 @@ class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
 
         receiverHost is the hostname other nodes can use to talk to me
         """
-
+        self.isConnected = False
+        self.currentClient: Optional[WsClientProtocol] = None
         self.connectSocket(rdfdbRoot)
         self.rdfdbRoot = rdfdbRoot
         self.initiallySynced: defer.Deferred[None] = defer.Deferred()
@@ -161,6 +164,10 @@ class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
     def patch(self, p: Patch) -> None:
         """send this patch to the server and apply it to our local
         graph and run handlers"""
+
+        if not self.isConnected or self.currentClient is None:
+            log.warn("not currently connected- dropping patch")
+            return
 
         if p.isNoop():
             log.info("skipping no-op patch")

@@ -262,9 +262,9 @@ class Db(object):
             self.watchedFiles.dirtyFiles([ctx])
         graphStats.statements = len(self.graph)
 
-    def _syncPatchToOtherClients(self, p: Patch, sender: str):
+    def _syncPatchToOtherClients(self, p: Patch, sender: Optional[str]=None):
         for c in self.clients:
-            if c.connectionId == sender:
+            if sender is not None and c.connectionId == sender:
                 # this client has self-applied the patch already
                 log.debug("_syncPatchToOtherClients: don't resend to %r", c)
                 continue
