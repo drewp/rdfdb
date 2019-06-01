@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
  
 setup(
     name='rdfdb',
-    version='0.18.0',
+    version='0.19.0',
     packages=find_packages(),
     install_requires=[
         'rdflib',
@@ -14,7 +14,7 @@ setup(
         "autobahn",
         'scales', # use git+http://github.com/drewp/scales.git@master#egg=scales
         ],
-    url='https://projects.bigasterisk.com/rdfdb/rdfdb-0.18.0.tar.gz',
+    url='https://projects.bigasterisk.com/rdfdb/rdfdb-0.19.0.tar.gz',
     author='Drew Perttula',
     author_email='drewp@bigasterisk.com',
     entry_points={
