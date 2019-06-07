@@ -15,15 +15,9 @@ from rdfdb.file_vs_uri import correctToTopdirPrefix, fileForUri, uriFromFile, Di
 from rdfdb.graphfile import GraphFile, PatchCb, GetSubgraph
 from rdfdb.patch import Patch, ALLSTMTS
 from rdfdb.rdflibpatch import patchQuads
+from standardservice.scalessetup import gatherProcessStats
 
-# move this out
-procStats = scales.collection('/process',
-                              scales.DoubleStat('time'),
-)
-def updateTimeStat():
-    procStats.time = round(time.time(), 3)
-task.LoopingCall(updateTimeStat).start(.2)
-
+gatherProcessStats()
 stats = scales.collection('/webServer',
                           scales.IntStat('clients'),
                           scales.IntStat('liveClients'),

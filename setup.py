@@ -11,7 +11,8 @@ setup(
         'treq',
         'rdflib-jsonld',
         'service_identity',
-        "autobahn",
+        'autobahn',
+        'standardservice', # from --index-url https://projects.bigasterisk.com/
         'scales', # use git+http://github.com/drewp/scales.git@master#egg=scales
         ],
     url='https://projects.bigasterisk.com/rdfdb/rdfdb-0.19.0.tar.gz',
