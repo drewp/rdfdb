@@ -211,7 +211,12 @@ class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
         """
         central server has sent us a patch
         """
-        log.debug('server has sent us %s', p)
+        if log.isEnabledFor(logging.DEBUG):
+            if len(p.addQuads) > 50:
+                log.debug('server has sent us %s', p.shortSummary())
+            else:
+                log.debug('server has sent us %s', p)
+            
         self._applyPatchLocally(p)
         try:
             self.runDepsOnNewPatch(p)

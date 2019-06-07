@@ -33,7 +33,6 @@ fileStats = scales.collection('/file',
 
 log = logging.getLogger('rdfdb')
 
-
 class WebsocketDisconnect(ValueError):
     pass
 
@@ -295,9 +294,8 @@ class Db(object):
         return g
 
     def addClient(self, newClient: WebsocketClient) -> None:
-        log.info("new connection: sending all graphs to %r..." % newClient)
+        log.info("new connection: sending all graphs to %r" % newClient)
         newClient.sendPatch(Patch(addQuads=self.graph.quads(ALLSTMTS), delQuads=[]))
-
         self.clients.append(newClient)
         stats.clients = len(self.clients)
 
