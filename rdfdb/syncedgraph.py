@@ -38,6 +38,7 @@ log = logging.getLogger('syncedgraph')
 
 
 class WsClientProtocol(autobahn.twisted.websocket.WebSocketClientProtocol):
+    """The server for this is service.WebsocketClient"""
     def __init__(self, sg):
         super().__init__()
         self.sg = sg
@@ -78,7 +79,7 @@ class WsClientProtocol(autobahn.twisted.websocket.WebSocketClientProtocol):
 
     def onClose(self, wasClean, code, reason):
         log.info("WebSocket connection closed: {0}".format(reason))
-        self.sg.isConnected = False
+        self.sg.lostRdfdbConnection()
 
 class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
     """
@@ -116,8 +117,8 @@ class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
         """
         self.isConnected = False
         self.currentClient: Optional[WsClientProtocol] = None
-        self.connectSocket(rdfdbRoot)
         self.rdfdbRoot = rdfdbRoot
+        self.connectSocket()
         self.initiallySynced: defer.Deferred[None] = defer.Deferred()
         self._graph = ConjunctiveGraph()
 
@@ -125,16 +126,23 @@ class SyncedGraph(CurrentStateGraphApi, AutoDepGraphApi, GraphEditApi):
         # this needs more state to track if we're doing a resync (and
         # everything has to error or wait) or if we're live
 
-    def connectSocket(self, rdfdbRoot: URIRef):
+    def lostRdfdbConnection(self) -> None:
+        self.isConnected = False
+        self.patch(Patch(delQuads=self._graph.quads()))
+        log.info(f'cleared graph to {len(self._graph)}')
+        log.error('graph is not updating- you need to restart')
+        self.connectSocket()       
+        
+    def connectSocket(self) -> None:
         factory = autobahn.twisted.websocket.WebSocketClientFactory(
-            rdfdbRoot.replace('http://', 'ws://') + 'syncedGraph',
+            self.rdfdbRoot.replace('http://', 'ws://') + 'syncedGraph',
             # Don't know if this is required by spec, but
             # cyclone.websocket breaks with no origin header.
             origin='foo')
         factory.protocol = lambda: WsClientProtocol(self)
 
-        rr = urllib.parse.urlparse(rdfdbRoot)
-        reactor.connectTCP(rr.hostname.encode('ascii'), rr.port, factory)
+        rr = urllib.parse.urlparse(self.rdfdbRoot)
+        conn = reactor.connectTCP(rr.hostname.encode('ascii'), rr.port, factory)
         #WsClientProtocol sets our currentClient. Needs rewrite using agents.
 
     def resync(self):
