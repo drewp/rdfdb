@@ -106,8 +106,7 @@ def serializeQuad(g):
             # already URIRef other times
             c = c.identifier
         if '[' in c.n3():
-            import ipdb
-            ipdb.set_trace()
+            raise ValueError(str(c))
         ntObject = _quoteLiteral(o) if isinstance(o, Literal) else o.n3()
         out.append("%s %s %s %s .\n" % (s.n3(), p.n3(), ntObject, c.n3()))
     return ''.join(out)
